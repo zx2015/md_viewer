@@ -17,12 +17,14 @@ def test_gb18030_fallback(tmp_path):
     assert enc == "gb18030"
 
 
-def test_latin1_fallback(tmp_path):
+def test_gb18030_catches_latin1_bytes(tmp_path):
+    # \xe9\xe8 is invalid UTF-8 but valid GB18030 (decodes to 殍).
+    # GB18030 catches it before latin-1 fallback.
     f = tmp_path / "a.md"
-    f.write_bytes(b"\xe9\xe8")  # invalid utf-8, valid latin-1 ('é','è')
+    f.write_bytes(b"\xe9\xe8")
     text, enc = read_text_safe(f)
-    assert text == "éè"
-    assert enc == "latin-1"
+    assert enc == "gb18030"
+    assert text == "殍"
 
 
 def test_full_byte_range(tmp_path):
