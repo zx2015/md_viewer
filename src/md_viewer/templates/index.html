@@ -4,9 +4,45 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>md-viewer</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
-<h1>md-viewer</h1>
-<p>Server is running. Frontend assets coming in Phase 5.</p>
+<body data-theme="auto">
+<header class="topbar">
+  <button id="toggle-sidebar" title="切换侧栏 (Ctrl+B)" aria-label="toggle sidebar">&#9776;</button>
+  <span class="brand">md-viewer</span>
+  <span class="meta" id="file-meta"></span>
+  <span class="spacer"></span>
+  <button id="toggle-raw" title="切换 Raw/Rendered (R)" disabled>Raw</button>
+  <button id="toggle-theme" title="切换主题 (Ctrl+Shift+L)" aria-label="toggle theme">&#9728;</button>
+</header>
+<main class="layout">
+  <aside id="sidebar" class="sidebar">
+    <input id="search" type="search" placeholder="搜索文件名… (Ctrl+K)" autocomplete="off">
+    <div id="tree" class="tree"></div>
+  </aside>
+  <article id="content" class="content">
+    <div id="empty-state" class="empty">&#8592; 在左侧选一个文件</div>
+  </article>
+  <nav id="toc" class="toc" hidden>
+    <div class="toc-title">本页目录</div>
+    <ol id="toc-list"></ol>
+  </nav>
+</main>
+<div id="shortcuts" class="modal" hidden>
+  <div class="modal-inner">
+    <h2>快捷键</h2>
+    <table>
+      <tr><td><kbd>J</kbd> / <kbd>K</kbd></td><td>上一个 / 下一个 .md</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>聚焦搜索</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>切换侧栏</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd></td><td>切换主题</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>R</kbd></td><td>刷新当前文件</td></tr>
+      <tr><td><kbd>R</kbd></td><td>切换 Raw / Rendered</td></tr>
+      <tr><td><kbd>?</kbd></td><td>本面板</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>关闭面板 / 清空搜索</td></tr>
+    </table>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
