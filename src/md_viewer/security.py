@@ -15,17 +15,18 @@ class ExtensionError(ValueError):
 def resolve_safe(path_str: str, root: Path) -> Path:
     """Resolve a user-provided path against ``root``.
 
-    Accepts both relative paths (resolved against ``root``) and absolute paths
-    that must be inside ``root`` after resolution. Raises ``PathError`` if
-    the resolved path escapes ``root``.
+    All paths are treated as paths-within-root: a leading ``/`` is stripped
+    so that API paths like ``/docs/a.md`` map to ``<root>/docs/a.md``.
+    This is appropriate for an app that always operates within a single
+    root directory.
+
+    Raises ``PathError`` if the resolved path escapes ``root``.
     """
     if not path_str:
         raise PathError("Empty path")
-    p = Path(path_str)
-    if not p.is_absolute():
-        p = (root / p).resolve()
-    else:
-        p = p.resolve()
+    # Strip leading slashes — treat the entire input as path-within-root
+    rel = path_str.lstrip("/")
+    p = (root / rel).resolve()
     try:
         p.relative_to(root)
     except ValueError as e:
