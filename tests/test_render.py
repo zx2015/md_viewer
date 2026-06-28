@@ -76,4 +76,32 @@ def test_gfm_task_uses_tasklists_class():
     r = render_markdown(md)
     # tasklists plugin emits a checkbox + class
     assert 'type="checkbox"' in r["html"]
-    assert "task-list-item" in r["html"]  
+    assert "task-list-item" in r["html"]
+
+
+def test_wikilink_basic():
+    r = render_markdown("see [[Other]] for more")
+    assert 'href="/api/file?path=/Other.md' in r["html"]
+    assert ">Other</a>" in r["html"]
+
+
+def test_wikilink_with_alias():
+    r = render_markdown("see [[Other|display text]] here")
+    assert ">display text</a>" in r["html"]
+    assert 'href="/api/file?path=/Other.md' in r["html"]
+
+
+def test_wikilink_explicit_md():
+    r = render_markdown("see [[other.md]] here")
+    assert 'href="/api/file?path=/other.md' in r["html"]
+
+
+def test_wikilink_inside_paragraph():
+    r = render_markdown("text [[Note]] more text")
+    assert "<p>" in r["html"]
+    assert "/api/file?path=/Note.md" in r["html"]
+
+
+def test_wikilink_in_heading():
+    r = render_markdown("# Title [[Link]]")
+    assert "/api/file?path=/Link.md" in r["html"]  
