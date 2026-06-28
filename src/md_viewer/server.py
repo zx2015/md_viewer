@@ -15,6 +15,15 @@ def create_app(config: Config | None = None) -> Flask:
     )
     app.config["MDV_CONFIG"] = cfg
 
+    # Disable caching of HTML, JS, and CSS during dev so updates are
+    # picked up on plain refresh (no hard-reload required).
+    @app.after_request
+    def no_cache(resp):
+        resp.headers["Cache-Control"] = "no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
+
     from .api import bp as api_bp
     app.register_blueprint(api_bp)
 
