@@ -72,6 +72,7 @@
     row.appendChild(twist);
 
     const label = document.createElement("span");
+    label.className = "label";
     label.textContent = node.name;
     row.appendChild(label);
 
@@ -326,6 +327,7 @@
       twist.textContent = "  ";
       row.appendChild(twist);
       const label = document.createElement("span");
+      label.className = "label";
       label.textContent = m.path;
       row.appendChild(label);
       row.addEventListener("click", () => openFile(m.path));
