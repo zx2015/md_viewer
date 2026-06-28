@@ -142,4 +142,21 @@ def test_external_link_gets_rel_and_target():
     md = "[g](https://example.com)"
     r = render_markdown(md)
     assert 'target="_blank"' in r["html"]
-    assert 'rel="noopener noreferrer"' in r["html"]  
+    assert 'rel="noopener noreferrer"' in r["html"]
+
+
+def test_mermaid_block_preserved():
+    md = "```mermaid\ngraph TD; A-->B;\n```"
+    r = render_markdown(md)
+    assert 'class="mermaid"' in r["html"]
+    assert "graph TD" in r["html"]
+    assert "<pre" in r["html"]
+
+
+def test_mermaid_not_sanitized_away():
+    # make sure mermaid pre tag survives nh3
+    md = "```mermaid\ngraph LR; X-->Y;\n```"
+    r = render_markdown(md)
+    # if mermaid pre is stripped, the content would be missing or replaced
+    assert "graph LR" in r["html"]
+    assert "X" in r["html"] and "Y" in r["html"]  
