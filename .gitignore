@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Local knowledge base (global convention)
+.learnings/
+
+# OpenCode runtime (global convention)
+.OpenCode/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Vendored deps (regenerated at build, not committed)
+src/md_viewer/static/vendor/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# User-personal sample notes (do not commit)
+samples/assets/personal-*/
