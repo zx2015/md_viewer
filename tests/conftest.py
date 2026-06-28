@@ -1,6 +1,7 @@
 import pytest
 
 from md_viewer.config import Config
+from md_viewer.server import create_app
 
 
 @pytest.fixture
@@ -35,3 +36,14 @@ def sample_tree(tmp_path):
 @pytest.fixture
 def root_path(sample_tree):
     return sample_tree.resolve()
+
+
+@pytest.fixture
+def app(sample_tree, monkeypatch):
+    monkeypatch.setenv("MDV_ROOT", str(sample_tree.resolve()))
+    return create_app(Config(root=sample_tree.resolve()))
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
