@@ -125,3 +125,37 @@ def test_file_encoding_reported(client, sample_tree):
     (sample_tree / "a.md").write_bytes("# Hi".encode("utf-8"))
     r = client.get("/api/file?path=/a.md&format=raw")
     assert r.get_json()["encoding"] == "utf-8"
+
+
+def test_image_served(client, sample_tree):
+    import base64
+    # 1x1 transparent PNG
+    png_bytes = base64.b64decode(
+        b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+    )
+    (sample_tree / "assets").mkdir()
+    (sample_tree / "assets" / "p.png").write_bytes(png_bytes)
+    r = client.get("/api/image?path=/assets/p.png")
+    assert r.status_code == 200
+    assert r.content_type == "image/png"
+    assert r.content_length == len(png_bytes)
+
+
+def test_image_etag(client, sample_tree):
+    (sample_tree / "a.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+    r1 = client.get("/api/image?path=/a.png")
+    etag = r1.headers.get("ETag")
+    assert etag is not None
+    r2 = client.get("/api/image?path=/a.png", headers={"If-None-Match": etag})
+    assert r2.status_code == 304
+
+
+def test_image_extension_blocked(client, sample_tree):
+    (sample_tree / "x.exe").write_bytes(b"x")
+    r = client.get("/api/image?path=/x.exe")
+    assert r.status_code in (400, 403)
+
+
+def test_image_path_traversal(client, sample_tree):
+    r = client.get("/api/image?path=/../etc/passwd")
+    assert r.status_code in (400, 403)

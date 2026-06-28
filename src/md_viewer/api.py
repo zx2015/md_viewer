@@ -1,7 +1,9 @@
 """HTTP API routes."""
 from __future__ import annotations
 
-from flask import Blueprint, current_app, jsonify, request
+import mimetypes
+
+from flask import Blueprint, current_app, jsonify, request, send_file
 
 from .config import Config
 from .encoding import read_text_safe
@@ -116,3 +118,37 @@ def get_file():
             "encoding": encoding,
         }
     )
+
+
+@bp.get("/image")
+def get_image():
+    cfg = _cfg()
+    path = request.args.get("path", "")
+
+    try:
+        p = resolve_safe(path, cfg.root)
+        check_extension(p, cfg.image_exts)
+    except PathError as e:
+        return jsonify({"error": str(e)}), 403
+    except ExtensionError as e:
+        return jsonify({"error": str(e)}), 400
+
+    if not p.is_file():
+        return jsonify({"error": "not found"}), 404
+
+    stat = p.stat()
+    if stat.st_size > cfg.max_file_size:
+        return jsonify({"error": "image too large"}), 413
+
+    etag = f'"{stat.st_mtime_ns:x}-{stat.st_size:x}"'
+    if request.headers.get("If-None-Match") == etag:
+        return "", 304
+
+    mime, _ = mimetypes.guess_type(str(p))
+    resp = send_file(
+        str(p),
+        mimetype=mime or "application/octet-stream",
+        conditional=True,
+    )
+    resp.headers["ETag"] = etag
+    return resp
