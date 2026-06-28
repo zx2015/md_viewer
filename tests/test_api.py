@@ -42,3 +42,33 @@ def test_tree_root_includes_size(client, sample_tree):
     a = next(c for c in data["children"] if c["name"] == "a.md")
     assert "size" in a
     assert a["size"] == 0  # file was written empty
+
+
+def test_search_finds(client, sample_tree):
+    r = client.get("/api/search?q=e")
+    assert r.status_code == 200
+    paths = [m["path"] for m in r.get_json()["matches"]]
+    assert "/docs/sub/e.md" in paths
+
+
+def test_search_empty_query(client, sample_tree):
+    r = client.get("/api/search?q=")
+    assert r.status_code == 200
+    assert r.get_json()["matches"] == []
+
+
+def test_search_limit_clamped(client, sample_tree):
+    for i in range(5):
+        (sample_tree / f"x{i}.md").write_text("")
+    r = client.get("/api/search?q=x&limit=99999")
+    assert r.status_code == 200
+    # limit clamped to 200 server-side
+    assert len(r.get_json()["matches"]) <= 200
+
+
+def test_search_returns_size(client, sample_tree):
+    (sample_tree / "sized.md").write_text("hello")
+    r = client.get("/api/search?q=sized")
+    matches = r.get_json()["matches"]
+    assert len(matches) == 1
+    assert "size" in matches[0]  

@@ -5,7 +5,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from .config import Config
 from .security import PathError
-from .tree import list_children
+from .tree import list_children, search
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -54,3 +54,12 @@ def get_children():
         return jsonify({"error": str(e)}), 403
     except (FileNotFoundError, NotADirectoryError) as e:
         return jsonify({"error": str(e)}), 404
+
+
+@bp.get("/search")
+def get_search():
+    cfg = _cfg()
+    q = request.args.get("q", "").strip()
+    limit = max(1, min(int(request.args.get("limit", "50")), 200))
+    matches = search(q, cfg, limit=limit) if q else []
+    return jsonify({"query": q, "matches": matches})
