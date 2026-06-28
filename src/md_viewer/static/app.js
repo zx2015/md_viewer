@@ -344,22 +344,33 @@
   }
 
   document.addEventListener("keydown", (e) => {
-    if (e.target.matches("input, textarea")) {
-      if (e.key === "Escape") {
+    // === Global: Escape always closes modal first, then blurs input ===
+    if (e.key === "Escape") {
+      if (!$("#shortcuts").hidden) {
+        $("#shortcuts").hidden = true;
+        return;
+      }
+      if (e.target.matches("input, textarea")) {
         e.target.blur();
-        $("#search").value = "";
-        clearSearch();
+        if (e.target.id === "search") {
+          e.target.value = "";
+          clearSearch();
+        }
+        return;
       }
       return;
     }
+
+    // === Global: ? toggles the shortcuts panel (works even in input) ===
     if (e.key === "?") {
-      $("#shortcuts").hidden = false;
+      e.preventDefault();
+      $("#shortcuts").hidden = !$("#shortcuts").hidden;
       return;
     }
-    if (e.key === "Escape") {
-      $("#shortcuts").hidden = true;
-      return;
-    }
+
+    // === From here on, ignore keys when typing in an input ===
+    if (e.target.matches("input, textarea")) return;
+
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
       e.preventDefault();
       $("#search").focus();
@@ -421,7 +432,10 @@
   });
   $("#search").addEventListener("input", onSearchInput);
   $("#shortcuts").addEventListener("click", (e) => {
-    if (e.target === $("#shortcuts")) $("#shortcuts").hidden = true;
+    // close when clicking the backdrop OR the close button (or its ×)
+    if (e.target === $("#shortcuts") || e.target.closest("#close-shortcuts")) {
+      $("#shortcuts").hidden = true;
+    }
   });
 
   window

@@ -30,7 +30,10 @@
 </main>
 <div id="shortcuts" class="modal" hidden>
   <div class="modal-inner">
-    <h2>快捷键</h2>
+    <div class="modal-header">
+      <h2>快捷键</h2>
+      <button class="modal-close" id="close-shortcuts" title="关闭 (Esc)" aria-label="close">&times;</button>
+    </div>
     <table>
       <tr><td><kbd>J</kbd> / <kbd>K</kbd></td><td>上一个 / 下一个 .md</td></tr>
       <tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>聚焦搜索</td></tr>
@@ -38,7 +41,7 @@
       <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd></td><td>切换主题</td></tr>
       <tr><td><kbd>Ctrl</kbd>+<kbd>R</kbd></td><td>刷新当前文件</td></tr>
       <tr><td><kbd>R</kbd></td><td>切换 Raw / Rendered</td></tr>
-      <tr><td><kbd>?</kbd></td><td>本面板</td></tr>
+      <tr><td><kbd>?</kbd></td><td>本面板（按 ? 或 Esc 关闭）</td></tr>
       <tr><td><kbd>Esc</kbd></td><td>关闭面板 / 清空搜索</td></tr>
     </table>
   </div>
