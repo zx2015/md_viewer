@@ -1,0 +1,22 @@
+services:
+  md-viewer:
+    build: .
+    image: md-viewer:latest
+    container_name: md-viewer
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount your notes/docs directory read-only at /data
+      # Adjust the left-hand path to your local folder:
+      - ~/notes:/data:ro
+    environment:
+      - MDV_ROOT=/data
+      - MDV_HOST=0.0.0.0
+      - MDV_PORT=8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

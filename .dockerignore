@@ -1,0 +1,26 @@
+# Exclude from Docker build context (similar to .gitignore)
+.git/
+.gitignore
+.learnings/
+.OpenCode/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# User-personal sample notes
+samples/assets/personal-*/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Docs + samples are fine in the image; only exclude build/cache artifacts.
+# Note: src/md_viewer/static/vendor/ is NOT excluded here because we don't
+# bundle KaTeX/Mermaid locally for v1 (frontend stays minimal). If you add
+# vendor assets later, copy them in via Dockerfile rather than relying on
+# build context.
