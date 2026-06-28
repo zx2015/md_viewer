@@ -45,3 +45,27 @@ def test_toc_includes_levels_1_to_3():
     assert len(r["toc"]) == 3
     levels = [t["level"] for t in r["toc"]]
     assert levels == [1, 2, 3]
+
+
+def test_gfm_table():
+    md = "| a | b |\n|---|\n| 1 | 2 |"
+    r = render_markdown(md)
+    assert "<table>" in r["html"]
+    assert "<td>1</td>" in r["html"]
+
+
+def test_gfm_task_checked():
+    md = "- [x] done\n- [ ] todo"
+    r = render_markdown(md)
+    assert 'type="checkbox"' in r["html"]
+    assert "checked" in r["html"]
+
+
+def test_gfm_strikethrough():
+    r = render_markdown("~~gone~~")
+    assert "<s>gone</s>" in r["html"]
+
+
+def test_gfm_autolink():
+    r = render_markdown("Visit https://example.com today")
+    assert '<a href="https://example.com"' in r["html"]  
