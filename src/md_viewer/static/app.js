@@ -344,27 +344,15 @@
   }
 
   document.addEventListener("keydown", (e) => {
-    // === Global: Escape always closes modal first, then blurs input ===
+    // === Global: Escape blurs input / clears search ===
     if (e.key === "Escape") {
-      if (!$("#shortcuts").hidden) {
-        $("#shortcuts").hidden = true;
-        return;
-      }
       if (e.target.matches("input, textarea")) {
         e.target.blur();
         if (e.target.id === "search") {
           e.target.value = "";
           clearSearch();
         }
-        return;
       }
-      return;
-    }
-
-    // === Global: ? toggles the shortcuts panel (works even in input) ===
-    if (e.key === "?") {
-      e.preventDefault();
-      $("#shortcuts").hidden = !$("#shortcuts").hidden;
       return;
     }
 
@@ -431,12 +419,6 @@
       });
   });
   $("#search").addEventListener("input", onSearchInput);
-  $("#shortcuts").addEventListener("click", (e) => {
-    // close when clicking the backdrop OR the close button (or its ×)
-    if (e.target === $("#shortcuts") || e.target.closest("#close-shortcuts")) {
-      $("#shortcuts").hidden = true;
-    }
-  });
 
   window
     .matchMedia("(prefers-color-scheme: dark)")

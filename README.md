@@ -65,8 +65,7 @@ CLI: `python -m md_viewer serve --root ~/notes --port 9000`.
 | `Ctrl+Shift+L` | Cycle theme (auto → dark → light) |
 | `Ctrl+R` | Refresh current file |
 | `R` | Toggle Raw / Rendered |
-| `?` | Show shortcuts panel |
-| `Esc` | Close panel / clear search |
+| `Esc` | Clear search / blur input |
 
 ## Architecture
 
