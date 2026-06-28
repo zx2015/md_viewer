@@ -104,4 +104,42 @@ def test_wikilink_inside_paragraph():
 
 def test_wikilink_in_heading():
     r = render_markdown("# Title [[Link]]")
-    assert "/api/file?path=/Link.md" in r["html"]  
+    assert "/api/file?path=/Link.md" in r["html"]
+
+
+def test_code_block_highlighted():
+    md = "```python\ndef f():\n    pass\n```"
+    r = render_markdown(md)
+    assert "<pre" in r["html"]
+    assert "<code" in r["html"]
+    assert "python" in r["html"]
+
+
+def test_code_block_copyable_class():
+    md = "```\nplain\n```"
+    r = render_markdown(md)
+    # we add a class to make the JS code-copy button able to find it
+    assert "copyable-code" in r["html"]
+
+
+def test_script_tag_stripped():
+    md = "<script>alert(1)</script>"
+    r = render_markdown(md)
+    assert "<script>" not in r["html"]
+    assert "alert" not in r["html"]
+
+
+def test_img_preserved_with_safe_attrs():
+    md = '<img src="x.png" alt="a" onerror="bad()">'
+    r = render_markdown(md)
+    assert "<img" in r["html"]
+    assert 'src="x.png"' in r["html"]
+    # onerror handler should be stripped
+    assert "onerror" not in r["html"]
+
+
+def test_external_link_gets_rel_and_target():
+    md = "[g](https://example.com)"
+    r = render_markdown(md)
+    assert 'target="_blank"' in r["html"]
+    assert 'rel="noopener noreferrer"' in r["html"]  
