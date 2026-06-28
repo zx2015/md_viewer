@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 from markdown_it import MarkdownIt
+from mdit_py_plugins.anchors import anchors_plugin
 
 _md = MarkdownIt("commonmark", {"html": True, "linkify": True, "typographer": True})
 _md.enable(["replacements", "smartquotes"])
+_md.use(anchors_plugin, max_level=3, min_level=1, permalink=False)
 
 
 def render_markdown(text: str) -> dict:
@@ -20,17 +22,17 @@ def render_markdown(text: str) -> dict:
     in_heading = False
     current_level = 0
     current_id: str | None = None
-    current_text: list[str] = []
+    current_text: str = ""
 
     for tok in tokens:
         if tok.type == "heading_open":
             in_heading = True
             current_level = int(tok.tag[1])
             current_id = tok.attrGet("id")
-            current_text = []
+            current_text = ""
         elif tok.type == "heading_close":
             if current_level <= 3:
-                heading_text = "".join(current_text).strip()
+                heading_text = current_text.strip()
                 toc.append(
                     {"level": current_level, "text": heading_text, "id": current_id}
                 )
@@ -38,9 +40,7 @@ def render_markdown(text: str) -> dict:
                     title = heading_text
             in_heading = False
         elif in_heading and tok.type == "inline":
-            current_text.append(tok.content)
-            for child in tok.children or []:
-                if child.type == "text":
-                    current_text.append(child.content)
+            # inline.content is the flattened text of the heading
+            current_text = tok.content
 
     return {"html": html, "toc": toc, "title": title}
