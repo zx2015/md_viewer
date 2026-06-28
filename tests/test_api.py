@@ -71,4 +71,57 @@ def test_search_returns_size(client, sample_tree):
     r = client.get("/api/search?q=sized")
     matches = r.get_json()["matches"]
     assert len(matches) == 1
-    assert "size" in matches[0]  
+    assert "size" in matches[0]
+
+
+def test_file_rendered(client, sample_tree):
+    (sample_tree / "a.md").write_text("# Hi\nbody")
+    r = client.get("/api/file?path=/a.md&format=rendered")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "<h1" in data["html"]
+    assert data["title"] == "Hi"
+    assert data["meta"]["name"] == "a.md"
+
+
+def test_file_raw(client, sample_tree):
+    (sample_tree / "a.md").write_text("# Hi")
+    r = client.get("/api/file?path=/a.md&format=raw")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["text"] == "# Hi"
+
+
+def test_file_default_format_is_rendered(client, sample_tree):
+    (sample_tree / "a.md").write_text("# Hi")
+    r = client.get("/api/file?path=/a.md")
+    assert r.status_code == 200
+    assert "html" in r.get_json()
+
+
+def test_file_too_large(client, sample_tree, monkeypatch):
+    cfg_override = client.application.config["MDV_CONFIG"]
+    from md_viewer.config import Config
+    client.application.config["MDV_CONFIG"] = Config(
+        root=cfg_override.root, max_file_size=10
+    )
+    (sample_tree / "big.md").write_text("x" * 100)
+    r = client.get("/api/file?path=/big.md")
+    assert r.status_code == 413
+
+
+def test_file_extension_blocked(client, sample_tree):
+    (sample_tree / "a.exe").write_text("nope")
+    r = client.get("/api/file?path=/a.exe")
+    assert r.status_code in (400, 403)
+
+
+def test_file_path_traversal(client, sample_tree):
+    r = client.get("/api/file?path=/../etc/passwd")
+    assert r.status_code in (400, 403)
+
+
+def test_file_encoding_reported(client, sample_tree):
+    (sample_tree / "a.md").write_bytes("# Hi".encode("utf-8"))
+    r = client.get("/api/file?path=/a.md&format=raw")
+    assert r.get_json()["encoding"] == "utf-8"
