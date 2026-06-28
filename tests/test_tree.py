@@ -1,6 +1,6 @@
 import pytest
 
-from md_viewer.tree import list_children, to_api_path
+from md_viewer.tree import list_children, search, to_api_path
 
 
 def test_to_api_path_root(root_path):
@@ -62,3 +62,42 @@ def test_list_children_empty_dir_has_no_children(sample_tree, cfg):
 def test_list_children_missing_dir_raises(sample_tree, cfg):
     with pytest.raises(FileNotFoundError):
         list_children("/nope", cfg)
+
+
+# ===== search =====
+
+
+def test_search_no_match(sample_tree, cfg):
+    assert search("readme", cfg) == []
+
+
+def test_search_finds_file(sample_tree, cfg):
+    paths = [r["path"] for r in search("a", cfg)]
+    assert "/a.md" in paths
+
+
+def test_search_case_insensitive(sample_tree, cfg):
+    paths = [r["path"] for r in search("A.MD", cfg)]
+    assert "/a.md" in paths
+
+
+def test_search_recursive(sample_tree, cfg):
+    paths = [r["path"] for r in search("e", cfg)]
+    assert "/docs/sub/e.md" in paths
+
+
+def test_search_excludes_non_content(sample_tree, cfg):
+    assert search("b", cfg) == []
+
+
+def test_search_limit(sample_tree, cfg):
+    for i in range(5):
+        (sample_tree / f"x{i}.md").write_text("")
+    assert len(search("x", cfg, limit=2)) == 2
+
+
+def test_search_relevance(sample_tree, cfg):
+    (sample_tree / "notes.md").write_text("")
+    (sample_tree / "notes-extra.md").write_text("")
+    results = search("notes.md", cfg)
+    assert results[0]["name"] == "notes.md"

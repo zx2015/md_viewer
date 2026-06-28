@@ -79,3 +79,44 @@ def list_children(path_str: str, cfg: Config) -> dict:
         child_count=len(children),
     )
     return node.to_dict()
+
+
+def search(query: str, cfg: Config, limit: int = 50) -> list[dict]:
+    """Recursively search filenames (case-insensitive substring).
+
+    Scoring (higher = more relevant):
+      100  exact filename match (case-insensitive)
+       50  filename starts with query
+       10  filename contains query
+    """
+    if not query.strip():
+        return []
+    q_lower = query.lower()
+
+    matches: list[tuple[int, dict]] = []
+
+    def visit(p: Path):
+        try:
+            entries = list(p.iterdir())
+        except (PermissionError, OSError):
+            return
+        for entry in entries:
+            if entry.is_dir():
+                visit(entry)
+                continue
+            if entry.suffix.lower() not in cfg.content_exts:
+                continue
+            name_lower = entry.name.lower()
+            score = 0
+            if name_lower == q_lower:
+                score = 100
+            elif name_lower.startswith(q_lower):
+                score = 50
+            elif q_lower in name_lower:
+                score = 10
+            if score > 0:
+                matches.append((score, _build_node(entry, entry.name, cfg.root, cfg.content_exts).to_dict()))
+
+    visit(cfg.root)
+    matches.sort(key=lambda x: (-x[0], x[1]["name"].lower()))
+    return [m for _, m in matches[:limit]]
