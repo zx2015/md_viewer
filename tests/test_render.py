@@ -48,7 +48,7 @@ def test_toc_includes_levels_1_to_3():
 
 
 def test_gfm_table():
-    md = "| a | b |\n|---|\n| 1 | 2 |"
+    md = "| a | b |\n|---|---|\n| 1 | 2 |"
     r = render_markdown(md)
     assert "<table>" in r["html"]
     assert "<td>1</td>" in r["html"]
@@ -68,4 +68,12 @@ def test_gfm_strikethrough():
 
 def test_gfm_autolink():
     r = render_markdown("Visit https://example.com today")
-    assert '<a href="https://example.com"' in r["html"]  
+    assert '<a href="https://example.com"' in r["html"]
+
+
+def test_gfm_task_uses_tasklists_class():
+    md = "- [x] done"
+    r = render_markdown(md)
+    # tasklists plugin emits a checkbox + class
+    assert 'type="checkbox"' in r["html"]
+    assert "task-list-item" in r["html"]  

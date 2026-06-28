@@ -6,15 +6,15 @@ from mdit_py_plugins.anchors import anchors_plugin
 from mdit_py_plugins.attrs import attrs_plugin
 from mdit_py_plugins.deflist import deflist_plugin
 from mdit_py_plugins.front_matter import front_matter_plugin
+from mdit_py_plugins.tasklists import tasklists_plugin
 
-_md = MarkdownIt("commonmark", {"html": True, "linkify": True, "typographer": True})
+_md = MarkdownIt("gfm-like", {"html": True, "linkify": True, "typographer": True})
 _md.enable(["replacements", "smartquotes"])
-_md.enable("table")
-_md.enable("strikethrough")
 _md.use(anchors_plugin, max_level=3, min_level=1, permalink=False)
 _md.use(attrs_plugin)
 _md.use(deflist_plugin)
 _md.use(front_matter_plugin)
+_md.use(tasklists_plugin, enabled=True)
 
 
 def render_markdown(text: str) -> dict:
