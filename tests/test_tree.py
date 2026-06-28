@@ -41,7 +41,8 @@ def test_list_children_alphabetical_within_type(sample_tree, cfg):
 def test_list_children_subdir(sample_tree, cfg):
     node = list_children("/docs", cfg)
     names = [c["name"] for c in node["children"]]
-    assert names == ["c.md", "d.md", "sub"]
+    # dirs first, then files alphabetical
+    assert names == ["sub", "c.md", "d.md"]
 
 
 def test_list_children_has_children(sample_tree, cfg):
