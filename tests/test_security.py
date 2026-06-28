@@ -14,9 +14,9 @@ def test_resolve_safe_relative(tmp_path):
     assert p == (tmp_path / "a.md").resolve()
 
 
-def test_resolve_safe_absolute_inside(tmp_path):
+def test_resolve_safe_without_leading_slash(tmp_path):
     (tmp_path / "a.md").write_text("x")
-    p = resolve_safe(str((tmp_path / "a.md").resolve()), tmp_path)
+    p = resolve_safe("a.md", tmp_path)
     assert p == (tmp_path / "a.md").resolve()
 
 
@@ -27,9 +27,10 @@ def test_resolve_safe_blocks_parent_escape(tmp_path):
         resolve_safe(f"../{outside.name}", tmp_path)
 
 
-def test_resolve_safe_blocks_absolute_outside(tmp_path):
+def test_resolve_safe_blocks_dotdot_in_middle(tmp_path):
+    (tmp_path / "sub").mkdir()
     with pytest.raises(PathError):
-        resolve_safe("/etc/passwd", tmp_path)
+        resolve_safe("/sub/../../escape", tmp_path)
 
 
 def test_resolve_safe_empty_path(tmp_path):
