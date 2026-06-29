@@ -4,12 +4,11 @@ services:
     image: md-viewer:latest
     container_name: md-viewer
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    network_mode: host
     volumes:
-      # Mount your notes/docs directory read-only at /data
-      # Adjust the left-hand path to your local folder:
-      - ~/notes:/data:ro
+      # Mount host directories read-only under the unified /data root
+      - /root/AI学习:/data/AI学习:ro
+      - /media/data/git:/data/git:ro
     environment:
       - MDV_ROOT=/data
       - MDV_HOST=0.0.0.0
@@ -19,4 +18,4 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 10s

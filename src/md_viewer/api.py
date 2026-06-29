@@ -20,19 +20,11 @@ def _cfg() -> Config:
 
 @bp.get("/health")
 def health():
-    cfg = _cfg()
-    md_count = sum(
-        1
-        for p in cfg.root.rglob("*")
-        if p.is_file() and p.suffix.lower() in cfg.content_exts
-    )
-    return jsonify(
-        {
-            "status": "ok",
-            "root": str(cfg.root),
-            "md_count": md_count,
-        }
-    )
+    # Lightweight liveness probe — must be cheap.
+    # We intentionally do NOT rglob the root here; that was too slow
+    # when the root contains a large number of files (e.g. multiple git
+    # repos or a notes tree with thousands of files).
+    return jsonify({"status": "ok"})
 
 
 @bp.get("/tree")

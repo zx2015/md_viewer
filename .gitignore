@@ -27,3 +27,6 @@ htmlcov/
 
 # User-personal sample notes (do not commit)
 samples/assets/personal-*/
+
+# Visual Companion workspace (do not commit)
+.superpowers/

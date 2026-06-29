@@ -4,17 +4,18 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
-RUN useradd -m -u 1000 mdv
-
 WORKDIR /app
 
 COPY pyproject.toml ./
 COPY src/ ./src/
 
-RUN pip install --no-cache-dir . && \
-    mkdir -p /data && chown mdv:mdv /data
+RUN pip install -i https://pypi.tuna.tsinghua.edu.cn/simple --no-cache-dir . && \
+    mkdir -p /data
 
-USER mdv
+# Note: we intentionally run as root inside the container so that
+# read-only bind mounts of host directories owned by root (e.g. /root/AI学习,
+# /media/data/git) remain readable to the app without requiring us
+# to loosen permissions on the host.
 
 ENV MDV_ROOT=/data \
     MDV_HOST=0.0.0.0 \
@@ -22,7 +23,8 @@ ENV MDV_ROOT=/data \
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+# Probe the lightweight /api/health endpoint (see src/md_viewer/api.py).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')" \
   || exit 1
 
