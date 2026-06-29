@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect class="icon-bg" width="64" height="64" rx="8"/>
+  <path d="M14 18 L14 46 M24 18 L24 46 M14 32 L20 32 M24 18 L34 18 L34 46"/>
+  <line x1="40" y1="22" x2="50" y2="42"/>
+</svg>
