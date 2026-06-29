@@ -3,13 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>md-viewer</title>
+<title>Markdown Viewer</title>
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body data-theme="auto">
 <header class="topbar">
-  <button id="toggle-sidebar" title="切换侧栏 (Ctrl+B)" aria-label="toggle sidebar">&#9776;</button>
-  <span class="brand">md-viewer</span>
+  <button id="toggle-sidebar" title="切换文件列表 (Ctrl+B)" aria-label="toggle sidebar">&#9776;</button>
+  <svg class="brand-icon" viewBox="0 0 64 64"><rect class="icon-bg" width="64" height="64" rx="8"/><path d="M14 18 L14 46 M24 18 L24 46 M14 32 L20 32 M24 18 L34 18 L34 46"/><line x1="40" y1="22" x2="50" y2="42"/></svg>
+  <span class="brand">Markdown Viewer</span>
   <span class="meta" id="file-meta"></span>
   <span class="spacer"></span>
   <button id="toggle-raw" title="切换 Raw/Rendered (R)" disabled>Raw</button>
