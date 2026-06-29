@@ -11,7 +11,7 @@
     selectedFile: null,
     renderedFormat: "rendered",
     theme: "auto",
-    sidebarVisible: true,
+    sidebarVisible: false,
     tree: { children: [] },
     flatSortedMds: [],
   };
@@ -22,7 +22,7 @@
   function loadLS() {
     state.selectedFile = localStorage.getItem(LS.selectedFile) || null;
     state.theme = localStorage.getItem(LS.theme) || "auto";
-    state.sidebarVisible = localStorage.getItem(LS.sidebarVisible) !== "false";
+    state.sidebarVisible = localStorage.getItem(LS.sidebarVisible) === "true";
   }
 
   function saveLS() {
