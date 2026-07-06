@@ -7,7 +7,7 @@ from flask import Blueprint, current_app, jsonify, request, send_file
 
 from .config import Config
 from .encoding import read_text_safe
-from .render import render_markdown
+from .render import render_viewable
 from .security import ExtensionError, PathError, check_extension, resolve_safe
 from .tree import list_children, search
 
@@ -81,11 +81,7 @@ def get_file():
     size = p.stat().st_size
     if size > cfg.max_file_size:
         return jsonify(
-            {
-                "error": "file too large",
-                "size": size,
-                "max": cfg.max_file_size,
-            }
+            {"error": "file too large", "size": size, "max": cfg.max_file_size}
         ), 413
 
     text, encoding = read_text_safe(p)
@@ -97,17 +93,41 @@ def get_file():
         "mtime": stat.st_mtime,
     }
 
-    if fmt == "raw":
-        return jsonify({"meta": meta, "text": text, "encoding": encoding})
+    rendered = render_viewable(p.name, text)
 
-    rendered = render_markdown(text)
+    # Markdown: format=raw returns the raw markdown text in `text` for v1
+    # frontend backward compatibility.
+    if rendered["kind"] == "markdown" and fmt == "raw":
+        return jsonify(
+            {"meta": meta, "text": text, "encoding": encoding, "kind": "markdown"}
+        )
+
+    # HTML: format=raw swaps the primary HTML to the highlighted source so
+    # the frontend can render it without a second roundtrip.
+    if rendered["kind"] == "html" and fmt == "raw":
+        return jsonify(
+            {
+                "meta": meta,
+                "kind": "html",
+                "html": rendered["source_html"],
+                "raw": rendered["raw"],
+                "title": None,
+                "encoding": encoding,
+            }
+        )
+
     return jsonify(
         {
             "meta": meta,
+            "kind": rendered["kind"],
             "html": rendered["html"],
-            "toc": rendered["toc"],
-            "title": rendered["title"],
+            "toc": rendered.get("toc") or [],
+            "title": rendered.get("title"),
             "encoding": encoding,
+            "raw": rendered.get("raw"),
+            "source_html": rendered.get("source_html"),
+            "json_valid": rendered.get("json_valid", True),
+            "error": rendered.get("error"),
         }
     )
 

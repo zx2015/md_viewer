@@ -159,3 +159,69 @@ def test_image_extension_blocked(client, sample_tree):
 def test_image_path_traversal(client, sample_tree):
     r = client.get("/api/image?path=/../etc/passwd")
     assert r.status_code in (400, 403)
+
+
+# === render_viewable dispatch (v2) ===
+
+def test_api_file_python_returns_kind_code(client, sample_tree):
+    from pathlib import Path
+    Path(sample_tree, "a.py").write_text("def f():\n    return 1\n")
+    r = client.get(f"/api/file?path=/a.py&format=rendered")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["kind"] == "code"
+    assert "<pre" in data["html"]
+
+
+def test_api_file_json_valid(client, sample_tree):
+    from pathlib import Path
+    Path(sample_tree, "a.json").write_text('{"x": 1}\n')
+    r = client.get("/api/file?path=/a.json&format=rendered")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["kind"] == "code"
+    assert data["json_valid"] is True
+
+
+def test_api_file_json_invalid(client, sample_tree):
+    from pathlib import Path
+    Path(sample_tree, "bad.json").write_text("{not valid}\n")
+    r = client.get("/api/file?path=/bad.json&format=rendered")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["kind"] == "code-error"
+    assert data["json_valid"] is False
+    assert data["error"]
+
+
+def test_api_file_html_default_is_sandbox(client, sample_tree):
+    from pathlib import Path
+    Path(sample_tree, "page.html").write_text("<h1>Hi</h1>")
+    r = client.get("/api/file?path=/page.html&format=rendered")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["kind"] == "html"
+    assert "<iframe" in data["html"]
+    assert data["raw"] == "<h1>Hi</h1>"
+
+
+def test_api_file_html_raw_returns_source(client, sample_tree):
+    from pathlib import Path
+    Path(sample_tree, "page.html").write_text("<h1>Hi</h1>")
+    r = client.get("/api/file?path=/page.html&format=raw")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["kind"] == "html"
+    assert data["raw"] == "<h1>Hi</h1>"
+    # When raw is requested for html, the response uses the highlighted source
+    assert "<pre" in data["html"]
+
+
+def test_api_file_python_raw_same_as_rendered(client, sample_tree):
+    from pathlib import Path
+    Path(sample_tree, "a.py").write_text("x = 1\n")
+    rendered = client.get("/api/file?path=/a.py&format=rendered").get_json()
+    raw = client.get("/api/file?path=/a.py&format=raw").get_json()
+    # For code files, both formats return the highlighted code
+    assert raw["kind"] == "code"
+    assert rendered["html"] == raw["html"]
