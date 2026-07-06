@@ -33,6 +33,14 @@ def test_content_exts():
     assert ".mdx" in Config.content_exts
 
 
+def test_content_exts_includes_new_types():
+    exts = Config.content_exts
+    assert ".py" in exts
+    assert ".json" in exts
+    assert ".html" in exts
+    assert ".htm" in exts
+
+
 def test_image_exts():
     assert ".png" in Config.image_exts
     assert ".svg" in Config.image_exts

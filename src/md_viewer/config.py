@@ -13,7 +13,10 @@ class Config:
     port: int = 8000
     max_file_size: int = 5 * 1024 * 1024
 
-    content_exts: frozenset[str] = frozenset({".md", ".markdown", ".mdx"})
+    content_exts: frozenset[str] = frozenset({
+        ".md", ".markdown", ".mdx",
+        ".py", ".json", ".html", ".htm",
+    })
     image_exts: frozenset[str] = frozenset(
         {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
     )
