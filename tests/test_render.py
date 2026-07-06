@@ -209,4 +209,62 @@ def test_render_viewable_md_delegates():
     r = render_viewable("a.md", "# Title\n\nbody\n")
     assert r["kind"] == "markdown"
     assert r["title"] == "Title"
-    assert "<h1" in r["html"]  
+    assert "<h1" in r["html"]
+
+
+# === Pygments CSS provider ===
+
+def test_pygments_css_light_nonempty():
+    from md_viewer.render import get_pygments_css
+    css = get_pygments_css("light")
+    assert css
+    # Should include token class selectors
+    assert ".kn" in css or ".k" in css or ".highlight" in css
+
+
+def test_pygments_css_dark_nonempty():
+    from md_viewer.render import get_pygments_css
+    css = get_pygments_css("dark")
+    assert css
+    assert ".kn" in css or ".k" in css or ".highlight" in css
+
+
+def test_pygments_css_dark_differs_from_light():
+    from md_viewer.render import get_pygments_css
+    light = get_pygments_css("light")
+    dark = get_pygments_css("dark")
+    # The two themes should produce different color values
+    assert light != dark
+
+
+# === Regression: double-escape bug ===
+# Prior version passed pre-escaped text to Pygments, which caused
+# ``"`` → ``&quot;`` → ``&amp;quot;`` and similar double-escapes.
+# See render.py `_highlight` / `_render_fence` / `_render_code_view`.
+
+def test_render_viewable_python_no_double_escape_in_docstring():
+    src = '"""Triple-quoted docstring with "quotes" inside."""\n'
+    r = render_viewable("a.py", src)
+    # Bug would render &quot; as &amp;quot;
+    assert "&amp;quot;" not in r["html"], f"double-escape detected: {r['html']!r}"
+    # And the resulting text should contain a properly-escaped &quot; (single escape)
+    assert "&quot;" in r["html"]
+
+
+def test_render_viewable_python_ampersand_not_double_escaped():
+    src = "x = a & b\n"  # a single '&' in source
+    r = render_viewable("a.py", src)
+    assert "&amp;amp;" not in r["html"], f"double-escape detected: {r['html']!r}"
+    assert "&amp;" in r["html"]
+
+
+def test_markdown_fence_python_no_double_escape():
+    from md_viewer.render import render_markdown
+    md = '```python\n"""Doc with "quotes".""\"\n```\n'
+    r = render_markdown(md)
+    # The bug rendered &quot; as &amp;quot;
+    assert "&amp;quot;" not in r["html"], f"double-escape detected: {r['html']!r}"
+    # Either a properly-escaped &quot; or the raw character inside a span is fine —
+    # what matters is no double-escape, and that the original text is preserved.
+    assert "Doc with" in r["html"]
+    assert "quotes" in r["html"]

@@ -90,3 +90,59 @@ body.no-toc .toc { display: none; }
 .toc a.active { color: var(--accent); font-weight: 700; background: rgba(37, 99, 235, .08); }
 .empty { color: var(--muted); padding: 2rem; text-align: center; }
 kbd { background: var(--code-bg); border: 1px solid var(--border); border-radius: 3px; padding: 0 .35em; font-family: monospace; font-size: .85em; }
+
+/* Sidebar top: search box + refresh button share a row */
+.sidebar-tools {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+.sidebar-tools #search { flex: 1; }
+
+.icon-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--fg);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.icon-btn:hover { background: rgba(0,0,0,.05); }
+[data-theme="dark"] .icon-btn:hover { background: rgba(255,255,255,.08); }
+.icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+.icon-btn svg { width: 18px; height: 18px; display: block; }
+
+/* Refresh button spin while in flight */
+.icon-btn.spinning svg { animation: mdv-spin 0.7s linear infinite; }
+@keyframes mdv-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* HTML sandbox preview */
+.html-preview {
+  width: 100%;
+  height: calc(100vh - 7rem);
+  min-height: 24rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+}
+
+/* JSON parse error banner */
+.code-error {
+  background: #fff7e6;
+  border: 1px solid #f0b429;
+  color: #6b4a00;
+  padding: .5rem .75rem;
+  border-radius: 4px;
+  margin-bottom: .75rem;
+  font-size: .9em;
+}
+[data-theme="dark"] .code-error {
+  background: #3a2c00;
+  border-color: #b07a00;
+  color: #ffd773;
+}

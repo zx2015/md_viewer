@@ -7,7 +7,7 @@ from flask import Blueprint, current_app, jsonify, request, send_file
 
 from .config import Config
 from .encoding import read_text_safe
-from .render import render_viewable
+from .render import get_pygments_css, render_viewable
 from .security import ExtensionError, PathError, check_extension, resolve_safe
 from .tree import list_children, search
 
@@ -163,4 +163,25 @@ def get_image():
         conditional=True,
     )
     resp.headers["ETag"] = etag
+    return resp
+
+
+@bp.get("/code-style")
+def get_code_style():
+    """Return Pygments-formatter CSS for the requested theme.
+
+    ``theme`` is "light" or "dark"; anything else (including missing) falls
+    back to "light". The response is text/css with a far-future Cache-Control
+    so the browser only fetches once per theme per session.
+    """
+    from flask import make_response
+
+    theme = (request.args.get("theme") or "light").lower()
+    if theme not in {"light", "dark"}:
+        theme = "light"
+    css = get_pygments_css(theme)
+    resp = make_response(css, 200)
+    resp.headers["Content-Type"] = "text/css; charset=utf-8"
+    # Cache for a day; client also re-fetches on theme switch.
+    resp.headers["Cache-Control"] = "public, max-age=86400"
     return resp

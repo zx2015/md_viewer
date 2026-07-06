@@ -2,9 +2,9 @@ def test_health(client):
     r = client.get("/api/health")
     assert r.status_code == 200
     data = r.get_json()
-    assert data["status"] == "ok"
-    assert "root" in data
-    assert "md_count" in data
+    # Lightweight liveness probe — must be cheap and must not leak
+    # internal state (root path, file count).
+    assert data == {"status": "ok"}
 
 
 def test_tree_root(client, sample_tree):
@@ -225,3 +225,38 @@ def test_api_file_python_raw_same_as_rendered(client, sample_tree):
     # For code files, both formats return the highlighted code
     assert raw["kind"] == "code"
     assert rendered["html"] == raw["html"]
+
+
+# === Pygments CSS endpoint ===
+
+def test_api_code_style_light(client):
+    r = client.get("/api/code-style?theme=light")
+    assert r.status_code == 200
+    assert r.content_type.startswith("text/css")
+    css = r.get_data(as_text=True)
+    assert css
+    # Pygments wraps output in <div class="highlight">, so scope targets .highlight
+    assert ".content .highlight" in css
+
+
+def test_api_code_style_dark(client):
+    r = client.get("/api/code-style?theme=dark")
+    assert r.status_code == 200
+    css = r.get_data(as_text=True)
+    assert css
+    # monokai has a distinctive background color near #272822
+    assert "272822" in css or ".content .highlight" in css
+
+
+def test_api_code_style_defaults_to_light(client):
+    r = client.get("/api/code-style")
+    assert r.status_code == 200
+    css = r.get_data(as_text=True)
+    assert css
+
+
+def test_api_code_style_invalid_theme_falls_back_to_light(client):
+    r = client.get("/api/code-style?theme=banana")
+    assert r.status_code == 200
+    css = r.get_data(as_text=True)
+    assert css

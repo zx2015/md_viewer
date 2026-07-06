@@ -38,6 +38,30 @@
     } else {
       document.body.dataset.theme = t;
     }
+    // Re-fetch Pygments CSS for the resolved theme; fire-and-forget.
+    loadCodeStyle(document.body.dataset.theme);
+  }
+
+  let codeStyleSeq = 0;
+  async function loadCodeStyle(theme) {
+    const seq = ++codeStyleSeq;
+    let css;
+    try {
+      const r = await fetch(`/api/code-style?theme=${encodeURIComponent(theme)}`);
+      if (!r.ok) throw new Error(`code-style -> ${r.status}`);
+      css = await r.text();
+    } catch (e) {
+      console.warn("loadCodeStyle failed", e);
+      return;
+    }
+    if (seq !== codeStyleSeq) return; // a newer load started
+    let tag = document.getElementById("mdv-code-style");
+    if (!tag) {
+      tag = document.createElement("style");
+      tag.id = "mdv-code-style";
+      document.head.appendChild(tag);
+    }
+    tag.textContent = css;
   }
 
   function applySidebar() {
@@ -166,23 +190,163 @@
     }
 
     const meta = data.meta;
-    $("#file-meta").textContent = meta
+    const metaText = meta
       ? `${meta.path} \u00B7 ${fmtSize(meta.size)} \u00B7 ${fmtMtime(meta.mtime)}`
       : "";
-    $("#toggle-raw").disabled = false;
-    $("#toggle-raw").textContent = state.renderedFormat === "raw" ? "Rendered" : "Raw";
+    $("#file-meta").textContent = metaText;
 
-    if (state.renderedFormat === "raw") {
-      content.innerHTML = `<div class="meta">${meta.path} \u00B7 ${fmtSize(meta.size)} \u00B7 ${fmtMtime(meta.mtime)}</div><pre><code>${escapeHtml(data.text)}</code></pre>`;
+    const kind = data.kind || "markdown";
+
+    // Markdown + raw: render the raw markdown text in a <pre> (v1 behavior).
+    if (kind === "markdown" && state.renderedFormat === "raw") {
+      $("#toggle-raw").disabled = false;
+      $("#toggle-raw").textContent = "Rendered";
+      content.innerHTML = `<div class="meta">${metaText}</div><pre><code>${escapeHtml(data.text || "")}</code></pre>`;
       $("#toc").hidden = true;
       document.body.classList.add("no-toc");
+      revealSelectedInTree();
       return;
     }
 
     document.body.classList.remove("no-toc");
-    content.innerHTML = `<div class="meta">${meta.path} \u00B7 ${fmtSize(meta.size)} \u00B7 ${fmtMtime(meta.mtime)}</div>${data.html}`;
-    hydrateContent();
-    renderToc(data.toc || []);
+    updateRawButton(kind, state.renderedFormat);
+
+    // JSON parse error: show a banner above the highlighted source.
+    const errorLine =
+      kind === "code-error" && data.error
+        ? `<div class="code-error">\u26A0 JSON \u8BED\u6CD5\u9519\u8BEF\uFF1A${escapeHtml(data.error)}</div>`
+        : "";
+
+    content.innerHTML = `<div class="meta">${metaText}</div>${errorLine}${data.html || ""}`;
+
+    if (kind === "markdown") {
+      hydrateContent();
+      renderToc(data.toc || []);
+    } else {
+      // code / html: no cross-file links or TOC; code views still get copy buttons
+      hydrateCopyButtons();
+      renderToc([]);
+    }
+
+    // Reveal in tree (lazy-loads branches along the way)
+    revealSelectedInTree();
+  }
+
+  function updateRawButton(kind, format) {
+    const btn = $("#toggle-raw");
+    if (!btn) return;
+    if (kind === "code") {
+      btn.hidden = true;
+      return;
+    }
+    btn.hidden = false;
+    if (kind === "html") {
+      btn.disabled = false;
+      btn.textContent = format === "raw" ? "Preview" : "Source";
+    } else {
+      btn.disabled = false;
+      btn.textContent = format === "raw" ? "Rendered" : "Raw";
+    }
+  }
+
+  function hydrateCopyButtons() {
+    content.querySelectorAll("pre.copyable-code").forEach((pre) => {
+      pre.addEventListener("click", (e) => {
+        if (e.target !== pre && !e.target.matches("code")) return;
+        const code = pre.querySelector("code");
+        const text = code ? code.textContent : pre.textContent;
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text).then(
+            () => {
+              pre.classList.add("copied");
+              setTimeout(() => pre.classList.remove("copied"), 1200);
+            },
+            () => {}
+          );
+        }
+      });
+    });
+  }
+
+  let revealSeq = 0;
+  function revealSelectedInTree() {
+    const seq = ++revealSeq;
+    const path = state.selectedFile;
+    if (!path) return Promise.resolve();
+
+    const parts = path.split("/").filter(Boolean);
+    if (parts.length < 2) return Promise.resolve(); // root-level file → nothing to expand
+
+    const dirSegments = parts.slice(0, -1);
+    let curPath = "";
+
+    return (async () => {
+      for (const seg of dirSegments) {
+        if (seq !== revealSeq) return;
+        curPath += "/" + seg;
+        const dirRow = document.querySelector(
+          `.tree .node.dir[data-path="${cssEscape(curPath)}"]`
+        );
+        if (!dirRow) return; // not in tree (probably search-results state)
+        const wrap = dirRow.nextElementSibling;
+        if (!(wrap && wrap.classList.contains("children") && wrap.hidden)) continue;
+
+        if (!wrap.dataset.loaded) {
+          try {
+            const data = await fetchJSON(
+              `/api/children?path=${encodeURIComponent(curPath)}`
+            );
+            if (seq !== revealSeq) return;
+            wrap.innerHTML = "";
+            for (const child of data.children || []) {
+              wrap.appendChild(renderNode(child, 1));
+            }
+            wrap.dataset.loaded = "1";
+          } catch (e) {
+            console.warn("reveal: failed to load", curPath, e);
+            return;
+          }
+        }
+        wrap.hidden = false;
+        const twist = dirRow.querySelector(".twist");
+        if (twist) twist.textContent = "\u25BE ";
+      }
+
+      if (seq !== revealSeq) return;
+      const fileRow = document.querySelector(
+        `.tree .node.file[data-path="${cssEscape(path)}"]`
+      );
+      if (fileRow) fileRow.scrollIntoView({ block: "center", behavior: "smooth" });
+    })();
+  }
+
+  async function refreshTree() {
+    const btn = $("#refresh-tree");
+    if (!btn || btn.classList.contains("spinning")) return;
+    btn.classList.add("spinning");
+    btn.disabled = true;
+    try {
+      // 1. Re-fetch root tree and re-render
+      const data = await fetchJSON("/api/tree");
+      state.tree = data;
+      state.flatSortedMds = collectSortedMds(data);
+      const root = $("#tree");
+      root.innerHTML = "";
+      for (const child of data.children || []) {
+        root.appendChild(renderNode(child, 1));
+      }
+      // 2. Re-load current file (if any)
+      if (state.selectedFile) {
+        await openFile(state.selectedFile, { format: state.renderedFormat });
+      }
+      // 3. Reveal current file in the fresh tree
+      await revealSelectedInTree();
+    } catch (e) {
+      console.error("refreshTree failed", e);
+    } finally {
+      btn.classList.remove("spinning");
+      btn.disabled = false;
+    }
   }
 
   function hydrateContent() {
@@ -380,6 +544,16 @@
       applyTheme();
       return;
     }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "r") {
+      e.preventDefault();
+      refreshTree();
+      return;
+    }
+    if (e.key === "F5") {
+      e.preventDefault();
+      refreshTree();
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r") {
       e.preventDefault();
       if (state.selectedFile) openFile(state.selectedFile, { format: state.renderedFormat });
@@ -396,10 +570,12 @@
       return;
     }
     if (e.key === "r") {
-      if (state.selectedFile)
-        openFile(state.selectedFile, {
-          format: state.renderedFormat === "raw" ? "rendered" : "raw",
-        });
+      if (!state.selectedFile) return;
+      const ext = state.selectedFile.split(".").pop().toLowerCase();
+      if (ext === "py" || ext === "json") return; // no toggle for code
+      openFile(state.selectedFile, {
+        format: state.renderedFormat === "raw" ? "rendered" : "raw",
+      });
     }
   });
 
@@ -420,6 +596,7 @@
         format: state.renderedFormat === "raw" ? "rendered" : "raw",
       });
   });
+  $("#refresh-tree").addEventListener("click", refreshTree);
   $("#search").addEventListener("input", onSearchInput);
 
   window
@@ -436,6 +613,8 @@
     const params = new URLSearchParams(location.search);
     const fromUrl = params.get("p");
     const initial = fromUrl || state.selectedFile;
-    if (initial) openFile(initial);
+    if (initial) {
+      openFile(initial).then(() => revealSelectedInTree());
+    }
   });
 })();

@@ -65,6 +65,9 @@ def _escape_html(s: str) -> str:
 
 
 def _highlight(escaped: str, lang: str) -> str:
+    # IMPORTANT: ``escaped`` is intentionally the *raw* source text — Pygments
+    # does its own HTML escaping internally via HtmlFormatter. Pre-escaping
+    # would cause double-escape (e.g. ``"`` → ``&quot;`` → ``&amp;quot;``).
     try:
         from pygments import highlight as _hl
         from pygments.lexers import get_lexer_by_name
@@ -74,7 +77,8 @@ def _highlight(escaped: str, lang: str) -> str:
         formatter = HtmlFormatter(nowrap=False, cssclass="highlight")
         return _hl(escaped, lexer, formatter)
     except Exception:
-        return escaped
+        # Fallback: at minimum the source must be HTML-safe
+        return _escape_html(escaped)
 
 
 def _render_fence(self, tokens, idx, options, env):
@@ -88,10 +92,11 @@ def _render_fence(self, tokens, idx, options, env):
     if lang == "mermaid":
         return f'<pre class="mermaid">{_escape_html(content)}</pre>\n'
 
-    escaped = _escape_html(content)
+    # IMPORTANT: pass raw content to Pygments — it does its own HTML escaping
+    # internally. Pre-escaping would cause double-escape of `"`, `&`, etc.
     copyable = "copyable-code"
     cls = f"language-{lang}" if lang else ""
-    body = _highlight(escaped, lang) if lang else escaped
+    body = _highlight(content, lang) if lang else _escape_html(content)
     return f'<pre class="{copyable}"><code class="{cls}">{body}</code></pre>\n'
 
 
@@ -193,10 +198,12 @@ _CODE_LANG_BY_EXT = {
 
 
 def _render_code_view(text: str, lang: str) -> str:
-    """Render plain text as a syntax-highlighted <pre> block."""
-    escaped = _escape_html(text)
-    body = _highlight(escaped, lang) if lang else escaped
+    """Render plain text as a syntax-highlighted <pre> block.
+
+    Pygments handles its own HTML escaping, so we pass the raw text in.
+    """
     cls = f"language-{lang}" if lang else ""
+    body = _highlight(text, lang) if lang else _escape_html(text)
     return f'<pre class="copyable-code"><code class="{cls}">{body}</code></pre>\n'
 
 
@@ -302,3 +309,28 @@ def render_viewable(filename: str, text: str) -> dict:
         "json_valid": True,
         "error": None,
     }
+
+
+# === Pygments style provider ===
+
+def get_pygments_css(theme: str) -> str:
+    """Return CSS for the Pygments HtmlFormatter matching the given theme.
+
+    ``theme`` is either "light" or "dark". Pygments built-in styles are used:
+    "default" for light, "monokai" for dark. The returned CSS is scoped to
+    ``.content .highlight`` because Pygments emits output wrapped in
+    ``<div class="highlight"><pre>...</pre></div>`` — the ``.highlight`` class
+    lives on the ``<div>``, not on ``<pre>``. This matches both fenced code
+    blocks inside Markdown and standalone .py/.json/.html files.
+    """
+    from pygments.formatters import HtmlFormatter
+
+    style_name = "monokai" if theme == "dark" else "default"
+    formatter = HtmlFormatter(style=style_name, cssclass="highlight")
+    raw = formatter.get_style_defs(".highlight")
+    # Scope to the content area so the rules don't bleed into other elements
+    # and ensure they win against the existing .content pre background/color.
+    # Note: Pygments wraps its output in <div class="highlight"><pre>...</pre></div>
+    # so we must target `.content .highlight`, not `.content pre.highlight`.
+    scoped = raw.replace(".highlight", ".content .highlight")
+    return scoped

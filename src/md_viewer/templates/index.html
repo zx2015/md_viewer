@@ -19,7 +19,22 @@
 </header>
 <main class="layout">
   <aside id="sidebar" class="sidebar">
-    <input id="search" type="search" placeholder="搜索文件名… (Ctrl+K)" autocomplete="off">
+    <div class="sidebar-tools">
+      <input id="search" type="search" placeholder="搜索文件名… (Ctrl+K)" autocomplete="off">
+      <button id="refresh-tree" class="icon-btn" type="button"
+              title="刷新文件树 (Ctrl+Shift+R / F5)" aria-label="refresh tree">
+        <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 4v6h6" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 20v-6h-6" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 10a8 8 0 0 1 14-3.5L20 8" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 14a8 8 0 0 1-14 3.5L4 16" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
     <div id="tree" class="tree"></div>
   </aside>
   <article id="content" class="content">
