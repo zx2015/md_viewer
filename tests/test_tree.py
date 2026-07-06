@@ -101,3 +101,20 @@ def test_search_relevance(sample_tree, cfg):
     (sample_tree / "notes-extra.md").write_text("")
     results = search("notes.md", cfg)
     assert results[0]["name"] == "notes.md"
+
+
+def test_list_children_includes_python_files(sample_tree, cfg):
+    from pathlib import Path
+    Path(sample_tree, "script.py").write_text("x = 1\n")
+    node = list_children("/", cfg)
+    names = [c["name"] for c in node["children"]]
+    assert "script.py" in names
+    py = next(c for c in node["children"] if c["name"] == "script.py")
+    assert py["type"] == "file"
+
+
+def test_search_finds_python_file(sample_tree, cfg):
+    from pathlib import Path
+    Path(sample_tree, "script.py").write_text("x = 1\n")
+    paths = [r["path"] for r in search("script", cfg)]
+    assert "/script.py" in paths
