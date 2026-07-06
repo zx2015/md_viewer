@@ -159,4 +159,54 @@ def test_mermaid_not_sanitized_away():
     r = render_markdown(md)
     # if mermaid pre is stripped, the content would be missing or replaced
     assert "graph LR" in r["html"]
-    assert "X" in r["html"] and "Y" in r["html"]  
+    assert "X" in r["html"] and "Y" in r["html"]
+
+
+# === render_viewable dispatcher ===
+
+from md_viewer.render import render_viewable
+
+
+def test_render_viewable_python():
+    r = render_viewable("hello.py", "def f():\n    return 1\n")
+    assert r["kind"] == "code"
+    assert r["toc"] == []
+    # Pygments token classes are present
+    assert "<span" in r["html"]
+    # Wrapped in a content <pre>
+    assert "<pre" in r["html"]
+
+
+def test_render_viewable_json_valid():
+    r = render_viewable("a.json", '{"x": 1, "y": [1,2]}\n')
+    assert r["kind"] == "code"
+    assert r["json_valid"] is True
+    assert "<pre" in r["html"]
+
+
+def test_render_viewable_json_invalid_still_highlights():
+    r = render_viewable("a.json", "{x: not valid}\n")
+    assert r["kind"] == "code-error"
+    assert r["json_valid"] is False
+    assert "error" in r and r["error"]
+    # Source still shown
+    assert "<pre" in r["html"]
+
+
+def test_render_viewable_html_sandbox_preview():
+    src = "<!doctype html><html><body><h1>Hi</h1></body></html>"
+    r = render_viewable("page.html", src)
+    assert r["kind"] == "html"
+    # Front-end will receive an <iframe srcdoc=...> fragment
+    assert "<iframe" in r["html"]
+    assert 'sandbox=""' in r["html"]
+    assert "srcdoc=" in r["html"]
+    # Raw source kept for "Source" toggle
+    assert r.get("raw") == src
+
+
+def test_render_viewable_md_delegates():
+    r = render_viewable("a.md", "# Title\n\nbody\n")
+    assert r["kind"] == "markdown"
+    assert r["title"] == "Title"
+    assert "<h1" in r["html"]  

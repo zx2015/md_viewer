@@ -1,7 +1,10 @@
 """Markdown -> HTML rendering pipeline."""
 from __future__ import annotations
 
+import html as _html
+import json as _json
 import re as _re
+from pathlib import Path as _Path
 
 from markdown_it import MarkdownIt
 from mdit_py_plugins.anchors import anchors_plugin
@@ -176,3 +179,126 @@ def render_markdown(text: str) -> dict:
             current_text = tok.content
 
     return {"html": html, "toc": toc, "title": title}
+
+
+# === render_viewable dispatcher (new in v2) ===
+
+# Mapping from extension to Pygments lexer name.
+_CODE_LANG_BY_EXT = {
+    ".py": "python",
+    ".json": "json",
+    ".html": "html",
+    ".htm": "html",
+}
+
+
+def _render_code_view(text: str, lang: str) -> str:
+    """Render plain text as a syntax-highlighted <pre> block."""
+    escaped = _escape_html(text)
+    body = _highlight(escaped, lang) if lang else escaped
+    cls = f"language-{lang}" if lang else ""
+    return f'<pre class="copyable-code"><code class="{cls}">{body}</code></pre>\n'
+
+
+def _render_html_preview(text: str) -> str:
+    """Build a sandboxed <iframe srcdoc> wrapper around the given HTML source.
+
+    The source is HTML-escaped so the attribute value is well-formed; the
+    browser decodes it back to the original HTML for rendering inside the
+    sandboxed iframe.
+    """
+    srcdoc = _html.escape(text, quote=True)
+    return (
+        f'<iframe class="html-preview" sandbox="" srcdoc="{srcdoc}" '
+        f'referrerpolicy="no-referrer"></iframe>\n'
+    )
+
+
+def render_viewable(filename: str, text: str) -> dict:
+    """Render a file's text into the unified response dict used by /api/file.
+
+    Returns a dict with these keys:
+        {
+          "kind": "markdown" | "code" | "code-error" | "html",
+          "html": str,                 # primary HTML to inject into the main pane
+          "toc": list[dict],           # populated for markdown, [] otherwise
+          "title": str | None,
+          "raw": str | None,           # only for kind=="html": original source
+          "source_html": str | None,   # only for kind=="html": highlighted source
+          "json_valid": bool,          # True for non-json, set per-file for .json
+          "error": str | None,         # only for kind=="code-error"
+        }
+    """
+    ext = _Path(filename).suffix.lower()
+
+    # Markdown family
+    if ext in {".md", ".markdown", ".mdx"}:
+        r = render_markdown(text)
+        return {
+            "kind": "markdown",
+            "html": r["html"],
+            "toc": r["toc"],
+            "title": r["title"],
+            "raw": None,
+            "source_html": None,
+            "json_valid": True,
+            "error": None,
+        }
+
+    # JSON: validate then highlight; on failure return code-error with message
+    if ext == ".json":
+        valid = True
+        err = None
+        try:
+            _json.loads(text)
+        except _json.JSONDecodeError as e:
+            valid = False
+            err = f"line {e.lineno} col {e.colno}: {e.msg}"
+        return {
+            "kind": "code" if valid else "code-error",
+            "html": _render_code_view(text, "json"),
+            "toc": [],
+            "title": None,
+            "raw": None,
+            "source_html": None,
+            "json_valid": valid,
+            "error": err,
+        }
+
+    # Generic code view (.py)
+    if ext in {".py"}:
+        return {
+            "kind": "code",
+            "html": _render_code_view(text, "python"),
+            "toc": [],
+            "title": None,
+            "raw": None,
+            "source_html": None,
+            "json_valid": True,
+            "error": None,
+        }
+
+    # HTML: sandbox preview by default; raw is the original source
+    if ext in {".html", ".htm"}:
+        return {
+            "kind": "html",
+            "html": _render_html_preview(text),
+            "toc": [],
+            "title": None,
+            "raw": text,
+            "source_html": _render_code_view(text, "html"),
+            "json_valid": True,
+            "error": None,
+        }
+
+    # Unknown extension — fall back to plain code view
+    return {
+        "kind": "code",
+        "html": _render_code_view(text, ""),
+        "toc": [],
+        "title": None,
+        "raw": None,
+        "source_html": None,
+        "json_valid": True,
+        "error": None,
+    }
