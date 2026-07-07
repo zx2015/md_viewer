@@ -60,7 +60,7 @@
 | # | 需求 |
 |---|------|
 | F25 | （deferred）KaTeX 数学公式渲染 |
-| F26 | Mermaid 流程图渲染：支持 Markdown 中 ```mermaid``` 代码块在前端渲染为 SVG 图 |
+| F26 | Mermaid 流程图渲染：支持 Markdown 中 ```mermaid``` 代码块在前端渲染为 SVG 图，并提供图内 `+/-/100%` 缩放控件 |
 
 ### 3.4 目录与构建约定
 
@@ -249,7 +249,7 @@ GET /api/image?path=/assets/diagram.png
 - **清除搜索**：`Esc` 或删除输入 → 恢复文件树
 - **TOC 高亮**：滚动时观察所有 heading 节点，计算最靠近顶部的 heading → 高亮对应 TOC 项
 - **Wikilink/跨文件链接**：后端优先重写本地相对链接为 `/api/file?path=...`；前端对所有 `a[href]` 再做本地内容路径兜底解析，点击时阻止默认行为并切换主区
-- **Mermaid 流程图**：Markdown 渲染后扫描 `pre.mermaid`，调用 Mermaid 运行时渲染为 SVG；主题切换时重新渲染当前 Markdown 文件
+- **Mermaid 流程图**：Markdown 渲染后扫描 `pre.mermaid`，调用 Mermaid 运行时渲染为 SVG；每张图提供 `+/-/100%` 缩放控件；主题切换时重新渲染当前 Markdown 文件
 - **图片加载失败**：`<img onerror>` 替换为占位 DOM（含文件名 + 错误图标）
 - **外部修改感知**：每次切换文件或 Ctrl+R 时重新请求 `/api/file`；`Ctrl+Shift+R`/`F5` 额外刷新文件树；不在前台时不做轮询
 
@@ -347,3 +347,4 @@ docker compose up -d
 | 中等规模（千级）目录扫描开销 | 首次展开/刷新树时可能有短暂延迟 | 可接受；按需扫描且前端提供手动刷新入口 |
 | 单进程 Flask 不抗并发 | 多人同时打开多个 tab 时排队 | 目标单用户，可接受 |
 | Mermaid 运行时来自 CDN | 离线或受限网络环境下流程图无法渲染 | 保留源码文本回退；后续可改为本地 vendored 脚本 |
+| Mermaid 图放大后超出可视区域 | 图表局部不可见 | 图表容器使用 `overflow:auto`，通过滚动查看放大区域 |

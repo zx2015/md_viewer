@@ -70,7 +70,42 @@ body.no-sidebar .sidebar { display: none; }
 .content pre.copyable-code.copied::after { content: "\2713 Copied"; }
 .content img { max-width: 100%; }
 .content pre.mermaid {
-  overflow-x: auto;
+  margin: 0;
+  background: transparent;
+  overflow: visible;
+}
+.mermaid-figure {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: .75rem 0;
+}
+.mermaid-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: .35rem;
+  padding: .35rem .4rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--sidebar-bg);
+}
+.mermaid-zoom-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 4px;
+  padding: .15rem .45rem;
+  font-size: .8em;
+  cursor: pointer;
+}
+.mermaid-zoom-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.mermaid-viewport {
+  overflow: auto;
+  padding: .65rem;
+}
+.mermaid-viewport svg {
+  display: block;
 }
 .content img.broken { display: inline-block; min-width: 8rem; min-height: 2rem; padding: .5rem; border: 1px dashed var(--border); color: var(--muted); text-align: center; line-height: 1.5rem; }
 .content .wikilink.dead { color: var(--muted); text-decoration: line-through; }

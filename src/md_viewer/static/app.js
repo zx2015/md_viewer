@@ -207,6 +207,83 @@
   }
 
   let mermaidSeq = 0;
+  const MERMAID_ZOOM = {
+    min: 0.5,
+    max: 2.5,
+    step: 0.1,
+    defaultScale: 1,
+  };
+
+  function clamp(n, min, max) {
+    return Math.max(min, Math.min(max, n));
+  }
+
+  function setupMermaidZoom(block) {
+    if (!(block instanceof HTMLElement) || block.closest(".mermaid-figure")) return;
+
+    const figure = document.createElement("div");
+    figure.className = "mermaid-figure";
+    figure.dataset.scale = String(MERMAID_ZOOM.defaultScale);
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "mermaid-toolbar";
+
+    const zoomOut = document.createElement("button");
+    zoomOut.type = "button";
+    zoomOut.className = "mermaid-zoom-btn";
+    zoomOut.textContent = "−";
+    zoomOut.title = "缩小";
+
+    const zoomReset = document.createElement("button");
+    zoomReset.type = "button";
+    zoomReset.className = "mermaid-zoom-btn";
+    zoomReset.textContent = "100%";
+    zoomReset.title = "重置缩放";
+
+    const zoomIn = document.createElement("button");
+    zoomIn.type = "button";
+    zoomIn.className = "mermaid-zoom-btn";
+    zoomIn.textContent = "+";
+    zoomIn.title = "放大";
+
+    toolbar.append(zoomOut, zoomReset, zoomIn);
+
+    const viewport = document.createElement("div");
+    viewport.className = "mermaid-viewport";
+
+    const parent = block.parentNode;
+    if (!parent) return;
+    parent.insertBefore(figure, block);
+    viewport.appendChild(block);
+    figure.append(toolbar, viewport);
+
+    const applyScale = (nextScale) => {
+      const scale = clamp(nextScale, MERMAID_ZOOM.min, MERMAID_ZOOM.max);
+      figure.dataset.scale = String(scale);
+      const svg = block.querySelector("svg");
+      if (!svg) return;
+      svg.style.transformOrigin = "top left";
+      svg.style.transform = `scale(${scale})`;
+      zoomReset.textContent = `${Math.round(scale * 100)}%`;
+      zoomOut.disabled = scale <= MERMAID_ZOOM.min;
+      zoomIn.disabled = scale >= MERMAID_ZOOM.max;
+    };
+
+    zoomOut.addEventListener("click", () => {
+      const cur = Number(figure.dataset.scale || MERMAID_ZOOM.defaultScale);
+      applyScale(cur - MERMAID_ZOOM.step);
+    });
+    zoomIn.addEventListener("click", () => {
+      const cur = Number(figure.dataset.scale || MERMAID_ZOOM.defaultScale);
+      applyScale(cur + MERMAID_ZOOM.step);
+    });
+    zoomReset.addEventListener("click", () => {
+      applyScale(MERMAID_ZOOM.defaultScale);
+    });
+
+    applyScale(MERMAID_ZOOM.defaultScale);
+  }
+
   async function hydrateMermaid() {
     const blocks = content.querySelectorAll("pre.mermaid");
     if (!blocks.length || !window.mermaid) return;
@@ -220,6 +297,7 @@
       });
       blocks.forEach((el) => el.removeAttribute("data-processed"));
       await window.mermaid.run({ nodes: blocks });
+      blocks.forEach((el) => setupMermaidZoom(el));
     } catch (e) {
       if (seq === mermaidSeq) {
         console.warn("hydrateMermaid failed", e);

@@ -30,6 +30,7 @@
 | F-R9 | J/K 跳转目标若位于未展开目录，自动展开路径并 scrollIntoView（与 F-R2 复用同一套机制） |
 | F-R10 | Markdown 普通相对链接按“当前文件目录”解析：后端渲染期重写 + 前端点击时兜底解析 |
 | F-R11 | Mermaid 流程图渲染：`pre.mermaid` 在前端 hydrate 为 SVG 图，主题切换时保持风格同步 |
+| F-R12 | Mermaid 图缩放控件：每个 Mermaid 图支持 `+` 放大、`-` 缩小、`100%` 重置 |
 
 ### 2.2 明确不做
 
@@ -311,6 +312,20 @@ if (ext === "html" || ext === "htm") {
 - Mermaid 使用 `securityLevel: "strict"`；
 - Mermaid 脚本加载失败时，页面保持原始 `<pre class="mermaid">` 文本，不阻断文档阅读。
 
+### 3.4.5 Mermaid 图缩放控件（F-R12）
+
+在 Mermaid 渲染完成后，前端将每个 Mermaid 节点包裹为独立图表容器，并注入工具栏按钮：
+
+- `-`：缩小 10%
+- `100%`：显示当前缩放比例，点击重置为 100%
+- `+`：放大 10%
+
+约束与交互：
+
+- 缩放范围限制为 `50% ~ 250%`，达到边界时对应按钮禁用；
+- 缩放仅作用于当前图，不影响其他 Mermaid 图；
+- 图表区域启用 `overflow:auto`，放大后可滚动查看完整内容。
+
 ### 3.5 文件树显示细节
 
 #### 3.5.1 新文件类型的图标（可选增强）
@@ -384,6 +399,7 @@ if (ext === "html" || ext === "htm") {
 - [x] `.py` / `.json` 文件下不显示 Raw/Source 按钮（或按钮禁用）
 - [x] J/K 跳到深层目录时自动展开并 scrollIntoView
 - [x] Mermaid 代码块（`graph TD`、`sequenceDiagram`）渲染为 SVG 而非源码文本
+- [x] Mermaid 图支持 `+/-/100%` 缩放控件
 
 ## 6. 风险与权衡
 
@@ -395,6 +411,7 @@ if (ext === "html" || ext === "htm") {
 | `.py` 文件含敏感信息（如 `SECRET_KEY = "..."`） | 中 | 不引入新风险——本身就是 read-only 浏览；但考虑在 v2 后续加"敏感文件后缀默认折叠"功能 |
 | Markdown 相对链接历史文档使用旧行为 | 低 | 已补充 F-R10：后端重写 + 前端兜底，避免相对链接失效 |
 | Mermaid 运行时脚本不可达（CDN/网络受限） | 中 | 回退为源码文本显示；后续可切换为本地 vendored 资源 |
+| Mermaid 图过大导致阅读区域受限 | 低 | 缩放 + 容器滚动条组合，确保可达性 |
 
 ## 7. 不在本次范围（明确 deferred）
 
@@ -411,7 +428,8 @@ if (ext === "html" || ext === "htm") {
 2. 前端：`refreshTree`、`revealSelectedInTree`、多格式 `openFile` 分支、主题代码样式切换均已落地。
 3. 链接：Markdown 相对链接采用“后端重写 + 前端兜底”双保险（F-R10）。
 4. Mermaid：Markdown 渲染后前端 hydrate，主题切换时可重渲染（F-R11）。
-5. 测试：`test_render.py`、`test_api.py` 已覆盖核心分支（含相对链接解析场景）。
+5. Mermaid 交互：每图独立 `+/-/100%` 缩放控件与滚动容器（F-R12）。
+6. 测试：`test_render.py`、`test_api.py` 已覆盖核心分支（含相对链接解析场景）。
 
 ## 9. 相关文档
 
