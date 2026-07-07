@@ -69,6 +69,9 @@ body.no-sidebar .sidebar { display: none; }
 .content pre.copyable-code:hover::after { opacity: 1; }
 .content pre.copyable-code.copied::after { content: "\2713 Copied"; }
 .content img { max-width: 100%; }
+.content pre.mermaid {
+  overflow-x: auto;
+}
 .content img.broken { display: inline-block; min-width: 8rem; min-height: 2rem; padding: .5rem; border: 1px dashed var(--border); color: var(--muted); text-align: center; line-height: 1.5rem; }
 .content .wikilink.dead { color: var(--muted); text-decoration: line-through; }
 .content table { border-collapse: collapse; }

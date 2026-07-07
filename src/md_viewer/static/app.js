@@ -10,6 +10,7 @@
   const state = {
     selectedFile: null,
     renderedFormat: "rendered",
+    currentKind: null,
     theme: "auto",
     sidebarVisible: false,
     tree: { children: [] },
@@ -40,6 +41,7 @@
     }
     // Re-fetch Pygments CSS for the resolved theme; fire-and-forget.
     loadCodeStyle(document.body.dataset.theme);
+    rerenderMarkdownForTheme();
   }
 
   let codeStyleSeq = 0;
@@ -204,6 +206,34 @@
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
   }
 
+  let mermaidSeq = 0;
+  async function hydrateMermaid() {
+    const blocks = content.querySelectorAll("pre.mermaid");
+    if (!blocks.length || !window.mermaid) return;
+
+    const seq = ++mermaidSeq;
+    try {
+      window.mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        theme: document.body.dataset.theme === "dark" ? "dark" : "default",
+      });
+      blocks.forEach((el) => el.removeAttribute("data-processed"));
+      await window.mermaid.run({ nodes: blocks });
+    } catch (e) {
+      if (seq === mermaidSeq) {
+        console.warn("hydrateMermaid failed", e);
+      }
+    }
+  }
+
+  function rerenderMarkdownForTheme() {
+    if (!state.selectedFile) return;
+    if (state.currentKind !== "markdown") return;
+    if (state.renderedFormat !== "rendered") return;
+    openFile(state.selectedFile, { format: state.renderedFormat });
+  }
+
   async function openFile(path, opts) {
     opts = opts || {};
     state.selectedFile = path;
@@ -230,6 +260,7 @@
     $("#file-meta").textContent = metaText;
 
     const kind = data.kind || "markdown";
+    state.currentKind = kind;
 
     // Markdown + raw: render the raw markdown text in a <pre> (v1 behavior).
     if (kind === "markdown" && state.renderedFormat === "raw") {
@@ -255,6 +286,7 @@
 
     if (kind === "markdown") {
       hydrateContent();
+      await hydrateMermaid();
       renderToc(data.toc || []);
     } else {
       // code / html: no cross-file links or TOC; code views still get copy buttons

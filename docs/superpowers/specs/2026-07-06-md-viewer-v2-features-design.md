@@ -29,6 +29,7 @@
 | F-R8 | 新格式的快捷键行为与 `.md` 一致：`R` 切换原始/渲染（仅 .html 实际有效：preview ↔ source），`Ctrl+R` 仅重载当前文件 |
 | F-R9 | J/K 跳转目标若位于未展开目录，自动展开路径并 scrollIntoView（与 F-R2 复用同一套机制） |
 | F-R10 | Markdown 普通相对链接按“当前文件目录”解析：后端渲染期重写 + 前端点击时兜底解析 |
+| F-R11 | Mermaid 流程图渲染：`pre.mermaid` 在前端 hydrate 为 SVG 图，主题切换时保持风格同步 |
 
 ### 2.2 明确不做
 
@@ -296,6 +297,20 @@ if (ext === "html" || ext === "htm") {
 - 保留 fragment（如 `guide.md#intro`）；
 - 最终访问仍走 `/api/file`，由后端 `resolve_safe` 统一做越权校验。
 
+### 3.4.4 Mermaid 流程图渲染（F-R11）
+
+当前实现为“后端保留 + 前端渲染”：
+
+1. 后端 `render.py` 对 ```mermaid``` 代码块输出 `<pre class="mermaid">...</pre>`；
+2. 模板 `index.html` 引入 Mermaid 运行时脚本；
+3. 前端 `app.js` 在 Markdown 内容注入后执行 `hydrateMermaid()`，对 `pre.mermaid` 调 `mermaid.run()` 渲染为 SVG；
+4. 主题切换（含 `auto` 跟随系统变更）后，若当前是 Markdown 渲染态，则重新加载当前文件以触发 Mermaid 重新渲染，保证图表主题同步。
+
+安全与回退：
+
+- Mermaid 使用 `securityLevel: "strict"`；
+- Mermaid 脚本加载失败时，页面保持原始 `<pre class="mermaid">` 文本，不阻断文档阅读。
+
 ### 3.5 文件树显示细节
 
 #### 3.5.1 新文件类型的图标（可选增强）
@@ -368,6 +383,7 @@ if (ext === "html" || ext === "htm") {
 - [x] `.html` 文件下点 `Preview` 切回沙盒
 - [x] `.py` / `.json` 文件下不显示 Raw/Source 按钮（或按钮禁用）
 - [x] J/K 跳到深层目录时自动展开并 scrollIntoView
+- [x] Mermaid 代码块（`graph TD`、`sequenceDiagram`）渲染为 SVG 而非源码文本
 
 ## 6. 风险与权衡
 
@@ -378,6 +394,7 @@ if (ext === "html" || ext === "htm") {
 | JSON 校验增加一次解析开销 | 极低 | 5MB 上限下，5MB JSON 解析 < 100ms；只在 `/api/file` 路径触发 |
 | `.py` 文件含敏感信息（如 `SECRET_KEY = "..."`） | 中 | 不引入新风险——本身就是 read-only 浏览；但考虑在 v2 后续加"敏感文件后缀默认折叠"功能 |
 | Markdown 相对链接历史文档使用旧行为 | 低 | 已补充 F-R10：后端重写 + 前端兜底，避免相对链接失效 |
+| Mermaid 运行时脚本不可达（CDN/网络受限） | 中 | 回退为源码文本显示；后续可切换为本地 vendored 资源 |
 
 ## 7. 不在本次范围（明确 deferred）
 
@@ -393,7 +410,8 @@ if (ext === "html" || ext === "htm") {
 1. 后端：`render_viewable` 多格式分发已落地，`content_exts` 扩展已生效，`/api/file` 已按 `kind` 返回。
 2. 前端：`refreshTree`、`revealSelectedInTree`、多格式 `openFile` 分支、主题代码样式切换均已落地。
 3. 链接：Markdown 相对链接采用“后端重写 + 前端兜底”双保险（F-R10）。
-4. 测试：`test_render.py`、`test_api.py` 已覆盖核心分支（含相对链接解析场景）。
+4. Mermaid：Markdown 渲染后前端 hydrate，主题切换时可重渲染（F-R11）。
+5. 测试：`test_render.py`、`test_api.py` 已覆盖核心分支（含相对链接解析场景）。
 
 ## 9. 相关文档
 
