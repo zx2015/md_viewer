@@ -84,6 +84,18 @@ def test_file_rendered(client, sample_tree):
     assert data["meta"]["name"] == "a.md"
 
 
+def test_file_markdown_relative_links_use_current_file_directory(client, sample_tree):
+    docs = sample_tree / "docs" / "requirements"
+    docs.mkdir(parents=True)
+    (docs / "00-overview.md").write_text("[open](09-open-questions.md)")
+    (docs / "09-open-questions.md").write_text("# q")
+
+    r = client.get("/api/file?path=/docs/requirements/00-overview.md&format=rendered")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert 'href="/api/file?path=/docs/requirements/09-open-questions.md"' in data["html"]
+
+
 def test_file_raw(client, sample_tree):
     (sample_tree / "a.md").write_text("# Hi")
     r = client.get("/api/file?path=/a.md&format=raw")

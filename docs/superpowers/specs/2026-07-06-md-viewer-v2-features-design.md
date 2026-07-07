@@ -1,6 +1,6 @@
 # md-viewer v2 增量特性 — 需求规格
 
-**状态**：草案 v1（待用户 review & 确认）
+**状态**：已实现并与代码同步（2026-07-07）
 **作者**：基于用户需求整理
 **日期**：2026-07-06
 **基于版本**：commit `01a23d9`（含 branding 改动、multi-root healthcheck 优化）
@@ -26,8 +26,9 @@
 | F-R5 | `.json` 文件：渲染为带 Pygments JSON 语法高亮的源码；JSON 无效时降级为纯文本 + 顶部错误条 |
 | F-R6 | `.html` 文件：默认渲染为**沙盒预览**（`<iframe sandbox>`），顶部提供"查看源码"切换 |
 | F-R7 | `.html` 源码查看：使用 Pygments HTML/XML lexer 高亮显示源码 |
-| F-R8 | 新格式的快捷键行为与 `.md` 一致：`R` 切换原始/渲染（仅 .html 实际有效：preview ↔ source），`Ctrl+R` 整体重载 |
+| F-R8 | 新格式的快捷键行为与 `.md` 一致：`R` 切换原始/渲染（仅 .html 实际有效：preview ↔ source），`Ctrl+R` 仅重载当前文件 |
 | F-R9 | J/K 跳转目标若位于未展开目录，自动展开路径并 scrollIntoView（与 F-R2 复用同一套机制） |
+| F-R10 | Markdown 普通相对链接按“当前文件目录”解析：后端渲染期重写 + 前端点击时兜底解析 |
 
 ### 2.2 明确不做
 
@@ -174,7 +175,7 @@ content_exts: frozenset[str] = frozenset({
 
 #### 3.3.2 渲染分发
 
-`src/md_viewer/render.py` 新增公开函数 `render_viewable(path: Path, text: str) -> dict`，按扩展名分支：
+`src/md_viewer/render.py` 提供 `render_viewable(filename: str, text: str, current_file_path: str | None = None) -> dict`，按扩展名分支：
 
 | 扩展名 | 分支 | 输出 |
 |--------|------|------|
@@ -204,8 +205,7 @@ content_exts: frozenset[str] = frozenset({
 
 ```python
 def render_code_view(text: str, lang: str) -> str:
-    escaped = _escape_html(text)
-    return _highlight(escaped, lang)
+    return _highlight(text, lang)
 ```
 
 输出包一层 `.content pre`，与现有代码块视觉一致：
@@ -274,13 +274,27 @@ if (ext === "html" || ext === "htm") {
 | `.md` 等 | 现有渲染 | 原始文本 |
 | `.py` | 高亮源码 HTML（仍走 JSON 通道） | **同 rendered**（无差异；后端等价返回） |
 | `.json` | 同上 | 同上 |
-| `.html` | `{kind: "html", html: "<iframe srcdoc=...>"}` | `{kind: "html-raw", html: "<pre>源码高亮</pre>", raw: "..."}` |
+| `.html` | `{kind: "html", html: "<iframe srcdoc=...>"}` | `{kind: "html", html: "<pre>源码高亮</pre>", raw: "..."}` |
 
 > 关键：**仍然返回 JSON，不返回 `text/plain`**。原因：保持与现有 `.md` 调用路径完全一致；前端 `fetchJSON` 不用分支处理 Response 类型。`.html` 源码嵌在 `srcdoc` 属性里需要正确转义，前端拿到后再赋值。
 
 #### 3.4.2 `/api/tree` 和 `/api/search`
 
 无需改动——`tree.py` 已经在 `_build_node` 中按 `cfg.content_exts` 过滤文件，扩 ext 后自动生效。
+
+### 3.4.3 Markdown 相对链接解析（F-R10）
+
+当前实现采用“双保险”：
+
+1. **后端重写（主路径）**：`render.py` 在渲染后处理 `<a href="...">`，将本地相对内容链接（`.md/.markdown/.mdx/.py/.json/.html/.htm`）按 `current_file_path` 归一化后改写为 `/api/file?path=...`。
+2. **前端兜底（兼容路径）**：`app.js` 的 `hydrateContent()` 对 `a[href]` 统一拦截，若链接仍是本地相对路径，则按 `state.selectedFile` 解析为绝对仓内路径并 `openFile()`。
+
+处理规则：
+
+- 外链（`http/https//mailto/tel`）保持默认行为；
+- 锚点（`#...`）和纯查询（`?...`）不改写；
+- 保留 fragment（如 `guide.md#intro`）；
+- 最终访问仍走 `/api/file`，由后端 `resolve_safe` 统一做越权校验。
 
 ### 3.5 文件树显示细节
 
@@ -329,7 +343,7 @@ if (ext === "html" || ext === "htm") {
 | 测试 | 文件 | 用例 |
 |------|------|------|
 | `test_render.py` | 新增 | `render_viewable(.py)` 输出含 `<span class="n">def</span>` 等 Pygments 类名；`render_viewable(.json)` 合法/非法都返回 200；`render_viewable(.html)` 输出含 `<iframe` + `sandbox=""` + `srcdoc=` |
-| `test_api.py` | 新增 | `/api/file?path=a.py` 返回 `{kind: "code", html: "..."}`；`?format=raw` 对 `.py`/`.json` 返回 `{kind: "code", ...}`（无 text 字段或等价内容）；`?format=raw` 对 `.html` 返回 `{kind: "html-raw", raw: "..."}` |
+| `test_api.py` | 新增 | `/api/file?path=a.py` 返回 `{kind: "code", html: "..."}`；`?format=raw` 对 `.py`/`.json` 返回 `{kind: "code", ...}`（无 text 字段或等价内容）；`?format=raw` 对 `.html` 返回 `{kind: "html", raw: "..."}` |
 | `test_security.py` | 新增（可选） | `check_extension` 对新扩展名 `.py/.json/.html/.htm` 通过 |
 | `test_tree.py` | 不变 | 现有 fixture 已用 `.md`；新增 fixture 含 `.py` 文件，验证 `list_children` 把它列为可见文件 |
 
@@ -343,17 +357,17 @@ if (ext === "html" || ext === "htm") {
 
 ### 5.3 视觉/交互验收清单
 
-- [ ] 刷新页面后文件树自动展开到上次选中文件
-- [ ] 刷新按钮点击后旋转动画、列表更新、当前文件重新加载
-- [ ] `Ctrl+Shift+R` 等同于点击刷新按钮
-- [ ] 文件树中能看到 `.py` / `.json` / `.html` 文件并点击
-- [ ] `.py` 文件显示带颜色高亮的源码
-- [ ] 非法 `.json` 文件顶部显示错误条 + 仍展示源码
-- [ ] `.html` 文件默认显示 `<iframe sandbox>` 预览
-- [ ] `.html` 文件下点 `Source` 切到高亮源码
-- [ ] `.html` 文件下点 `Preview` 切回沙盒
-- [ ] `.py` / `.json` 文件下不显示 Raw/Source 按钮（或按钮禁用）
-- [ ] J/K 跳到深层目录时自动展开并 scrollIntoView
+- [x] 刷新页面后文件树自动展开到上次选中文件
+- [x] 刷新按钮点击后旋转动画、列表更新、当前文件重新加载
+- [x] `Ctrl+Shift+R` 等同于点击刷新按钮
+- [x] 文件树中能看到 `.py` / `.json` / `.html` 文件并点击
+- [x] `.py` 文件显示带颜色高亮的源码
+- [x] 非法 `.json` 文件顶部显示错误条 + 仍展示源码
+- [x] `.html` 文件默认显示 `<iframe sandbox>` 预览
+- [x] `.html` 文件下点 `Source` 切到高亮源码
+- [x] `.html` 文件下点 `Preview` 切回沙盒
+- [x] `.py` / `.json` 文件下不显示 Raw/Source 按钮（或按钮禁用）
+- [x] J/K 跳到深层目录时自动展开并 scrollIntoView
 
 ## 6. 风险与权衡
 
@@ -363,7 +377,7 @@ if (ext === "html" || ext === "htm") {
 | HTML 沙盒预览可能与图片/CSS 路径冲突 | 低 | 沙盒最严格，原 HTML 内的 `<script>` 自动失效；如 HTML 用相对路径引用图片，会显示空白——但符合"安全预览"目标 |
 | JSON 校验增加一次解析开销 | 极低 | 5MB 上限下，5MB JSON 解析 < 100ms；只在 `/api/file` 路径触发 |
 | `.py` 文件含敏感信息（如 `SECRET_KEY = "..."`） | 中 | 不引入新风险——本身就是 read-only 浏览；但考虑在 v2 后续加"敏感文件后缀默认折叠"功能 |
-| 现有测试 `test_health` 已失败 | — | 本次不修复；与本特性正交 |
+| Markdown 相对链接历史文档使用旧行为 | 低 | 已补充 F-R10：后端重写 + 前端兜底，避免相对链接失效 |
 
 ## 7. 不在本次范围（明确 deferred）
 
@@ -374,15 +388,12 @@ if (ext === "html" || ext === "htm") {
 - 代码差异对比（diff view）
 - 文件夹右键菜单（新建/删除/重命名）
 
-## 8. 实施顺序建议
+## 8. 已落地实现摘要
 
-仅供后续实现阶段参考，**本次不开始写代码**：
-
-1. 后端：`render.py` 新增 `render_viewable`；`config.py` 扩 `content_exts`；`api.py` 调整 `/api/file` 分支
-2. 后端测试：补 `test_render.py` / `test_api.py` 用例；运行 `pytest` 全绿
-3. 前端：`app.js` 新增 `revealSelectedInTree` + `refreshTree`；openFile 加 `kind` 分支
-4. 前端：`index.html` 侧栏顶部加刷新按钮；`style.css` 加按钮 + 旋转动画样式
-5. 手动验收清单（§5.3）
+1. 后端：`render_viewable` 多格式分发已落地，`content_exts` 扩展已生效，`/api/file` 已按 `kind` 返回。
+2. 前端：`refreshTree`、`revealSelectedInTree`、多格式 `openFile` 分支、主题代码样式切换均已落地。
+3. 链接：Markdown 相对链接采用“后端重写 + 前端兜底”双保险（F-R10）。
+4. 测试：`test_render.py`、`test_api.py` 已覆盖核心分支（含相对链接解析场景）。
 
 ## 9. 相关文档
 

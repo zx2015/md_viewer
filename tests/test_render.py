@@ -145,6 +145,18 @@ def test_external_link_gets_rel_and_target():
     assert 'rel="noopener noreferrer"' in r["html"]
 
 
+def test_relative_markdown_link_rewritten_with_current_path():
+    md = "[next](09-open-questions.md)"
+    r = render_markdown(md, current_file_path="/docs/requirements/00-overview.md")
+    assert 'href="/api/file?path=/docs/requirements/09-open-questions.md"' in r["html"]
+
+
+def test_parent_relative_markdown_link_rewritten_with_current_path():
+    md = "[guide](../guide/intro.md#sec)"
+    r = render_markdown(md, current_file_path="/docs/requirements/00-overview.md")
+    assert 'href="/api/file?path=/docs/guide/intro.md#sec"' in r["html"]
+
+
 def test_mermaid_block_preserved():
     md = "```mermaid\ngraph TD; A-->B;\n```"
     r = render_markdown(md)

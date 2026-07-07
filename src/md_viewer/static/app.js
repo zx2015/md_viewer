@@ -82,6 +82,40 @@
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
+  function resolveLocalContentPath(href) {
+    if (!href || href.startsWith("#") || href.startsWith("?")) return null;
+    if (/^(https?:)?\/\//i.test(href) || /^(mailto|tel):/i.test(href)) return null;
+
+    if (href.startsWith("/api/file?path=")) {
+      try {
+        const url = new URL(href, location.origin);
+        return url.searchParams.get("path");
+      } catch (_) {
+        return null;
+      }
+    }
+
+    const [pathPart] = href.split(/[?#]/, 1);
+    if (!/\.(md|markdown|mdx|py|json|html|htm)$/i.test(pathPart || "")) return null;
+
+    const base = state.selectedFile || "/";
+    const baseDirParts = base.split("/").filter(Boolean);
+    if (baseDirParts.length) baseDirParts.pop();
+    const targetParts = pathPart.startsWith("/")
+      ? pathPart.split("/").filter(Boolean)
+      : baseDirParts.concat(pathPart.split("/").filter(Boolean));
+    const stack = [];
+    for (const part of targetParts) {
+      if (!part || part === ".") continue;
+      if (part === "..") {
+        if (stack.length) stack.pop();
+        continue;
+      }
+      stack.push(part);
+    }
+    return "/" + stack.join("/");
+  }
+
   // ===== Tree rendering =====
   function renderNode(node, depth) {
     const wrap = document.createElement("div");
@@ -350,10 +384,10 @@
   }
 
   function hydrateContent() {
-    // Wikilinks / cross-file links: intercept clicks
-    content.querySelectorAll('a[href*="/api/file?path="]').forEach((a) => {
-      const url = new URL(a.href, location.origin);
-      const p = url.searchParams.get("path");
+    // Internal markdown links: prefer server-rewritten /api/file links, with
+    // a client-side fallback for unresolved relative hrefs.
+    content.querySelectorAll("a[href]").forEach((a) => {
+      const p = resolveLocalContentPath(a.getAttribute("href") || "");
       if (!p) return;
       a.addEventListener("click", (e) => {
         e.preventDefault();

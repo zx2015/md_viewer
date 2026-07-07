@@ -93,7 +93,7 @@ def get_file():
         "mtime": stat.st_mtime,
     }
 
-    rendered = render_viewable(p.name, text)
+    rendered = render_viewable(p.name, text, current_file_path=meta["path"])
 
     # Markdown: format=raw returns the raw markdown text in `text` for v1
     # frontend backward compatibility.

@@ -3,8 +3,12 @@ from __future__ import annotations
 
 import html as _html
 import json as _json
+import posixpath as _posixpath
 import re as _re
 from pathlib import Path as _Path
+from urllib.parse import quote as _quote
+from urllib.parse import unquote as _unquote
+from urllib.parse import urlsplit as _urlsplit
 
 from markdown_it import MarkdownIt
 from mdit_py_plugins.anchors import anchors_plugin
@@ -113,11 +117,50 @@ _md.add_render_rule("code_block", _render_code_block)
 
 # === Link post-processor (add rel/target to external links) ===
 _LINK_RE = _re.compile(r'<a\s+([^>]*?)href="([^"]+)"([^>]*)>', _re.IGNORECASE)
+_CONTENT_LINK_EXTS = (".md", ".markdown", ".mdx", ".py", ".json", ".html", ".htm")
 
 
-def _post_process_links(html: str) -> str:
+def _resolve_local_href(href_path: str, current_file_path: str) -> str:
+    base_dir = _posixpath.dirname(current_file_path) or "/"
+    if href_path.startswith("/"):
+        joined = href_path
+    else:
+        joined = _posixpath.join(base_dir, href_path)
+    normalized = _posixpath.normpath("/" + joined.lstrip("/"))
+    return normalized if normalized.startswith("/") else "/" + normalized
+
+
+def _rewrite_local_file_href(href: str, current_file_path: str | None) -> str:
+    if not current_file_path:
+        return href
+    if href.startswith("/api/file?path="):
+        return href
+    if href.startswith(("#", "?")):
+        return href
+
+    parsed = _urlsplit(href)
+    if parsed.scheme or parsed.netloc:
+        return href
+    if parsed.query:
+        return href
+
+    decoded_path = _unquote(parsed.path or "")
+    if not decoded_path:
+        return href
+    if not decoded_path.lower().endswith(_CONTENT_LINK_EXTS):
+        return href
+
+    resolved = _resolve_local_href(decoded_path, current_file_path)
+    api_href = f'/api/file?path={_quote(resolved, safe="/")}'
+    if parsed.fragment:
+        return f"{api_href}#{parsed.fragment}"
+    return api_href
+
+
+def _post_process_links(html: str, current_file_path: str | None = None) -> str:
     def fix(match: _re.Match) -> str:
         before, href, after = match.group(1), match.group(2), match.group(3)
+        href = _rewrite_local_file_href(href, current_file_path)
         is_external = href.startswith(("http://", "https://", "//"))
         target = ' target="_blank"' if is_external else ""
         return f'<a {before}href="{href}"{after}{target}>'
@@ -141,7 +184,7 @@ def _preprocess_wikilinks(text: str) -> str:
     return _WIKILINK_RE.sub(_wikilink_replace, text)
 
 
-def render_markdown(text: str) -> dict:
+def render_markdown(text: str, current_file_path: str | None = None) -> dict:
     """Render markdown to HTML and extract TOC + title.
 
     Returns dict with keys: html (str), toc (list[dict]), title (str|None).
@@ -149,7 +192,7 @@ def render_markdown(text: str) -> dict:
     text = _preprocess_wikilinks(text)
     tokens = _md.parse(text)
     html = _md.render(text)
-    html = _post_process_links(html)
+    html = _post_process_links(html, current_file_path=current_file_path)
     html = nh3_clean(
         html,
         tags=ALLOWED_TAGS,
@@ -221,7 +264,9 @@ def _render_html_preview(text: str) -> str:
     )
 
 
-def render_viewable(filename: str, text: str) -> dict:
+def render_viewable(
+    filename: str, text: str, current_file_path: str | None = None
+) -> dict:
     """Render a file's text into the unified response dict used by /api/file.
 
     Returns a dict with these keys:
@@ -240,7 +285,7 @@ def render_viewable(filename: str, text: str) -> dict:
 
     # Markdown family
     if ext in {".md", ".markdown", ".mdx"}:
-        r = render_markdown(text)
+        r = render_markdown(text, current_file_path=current_file_path)
         return {
             "kind": "markdown",
             "html": r["html"],
